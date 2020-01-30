@@ -2,7 +2,8 @@ import warnings
 from abc import ABCMeta, abstractmethod
 
 import numpy as np
-from scipy.linalg import pinv2, svd
+from scipy.linalg import pinv2
+from scipy.optimize import brentq
 
 from sklearn.base import BaseEstimator, RegressorMixin, TransformerMixin
 from sklearn.base import MultiOutputMixin
@@ -10,6 +11,12 @@ from sklearn.utils import check_array, check_consistent_length
 from sklearn.utils.extmath import svd_flip
 from sklearn.utils.validation import check_is_fitted, FLOAT_DTYPES
 from sklearn.exceptions import ConvergenceWarning
+from sklearn.cross_decomposition.pls_ import _center_scale_xy
+
+from .utils import svd_cross_product, sparsity_conversion
+from .utils import _soft_thresholding, _group_thresholding
+from .utils import _lambda_quadratic, _sparse_group_thresholding
+from .utils import pls_blocks, pls_array
 
 __all__ = ['PLSCanonical', 'PLSRegression']
 
@@ -79,38 +86,230 @@ def _nipals_twoblocks_inner_loop(X, Y, mode="A", max_iter=500, tol=1e-06,
     return x_weights, y_weights, ite
 
 
-def _svd_cross_product(X, Y):
-    C = np.dot(X.T, Y)
-    U, s, Vh = svd(C, full_matrices=False)
-    u = U[:, [0]]
-    v = Vh.T[:, [0]]
-    return u, v
-
-
-def _center_scale_xy(X, Y, scale=True):
-    """ Center X, Y and scale if the scale parameter==True
+def _spls_inner_loop(X, Y, x_var, y_var, max_iter=500, tol=1e-06,
+                    norm_y_weights=True):
+    """Inner loop for iterative tuning of sPLS algorithm.
     
-    Returns
-    -------
-        X, Y, x_mean, y_mean, x_std, y_std
+    Estimates PLS weights which solve the sparse PLS objective function.
+    See Lê Cao et al (2008) for details.
     """
-    # center
-    x_mean = X.mean(axis=0)
-    X -= x_mean
-    y_mean = Y.mean(axis=0)
-    Y -= y_mean
-    # scale
-    if scale:
-        x_std = X.std(axis=0, ddof=1)
-        x_std[x_std == 0.0] = 1.0
-        X /= x_std
-        y_std = Y.std(axis=0, ddof=1)
-        y_std[y_std == 0.0] = 1.0
-        Y /= y_std
-    else:
-        x_std = np.ones(X.shape[1])
-        y_std = np.ones(Y.shape[1])
-    return X, Y, x_mean, y_mean, x_std, y_std
+    u_old, v_old, M = svd_cross_product(X, Y, return_matrix=True)
+    ite = 1
+    eps = np.finfo(X.dtype).eps
+    # Inner loop of sPLS
+    while True:
+        # 1.1 Calculate M_v : the X projections
+        M_v = np.dot(M, v_old)
+        # 1.2 Find lambda_x : the X penalty
+        if x_var == 0:
+            lambda_x = 0
+        else:
+            lambda_x = sorted(np.absolute(M_v))[x_var]
+        # The number of non-zero X loadings gives the appropriate value
+        # for penalisation of X variables.
+        # 1.3 Update u : the X weights
+        u = _soft_thresholding(M_v, lambda_x)
+        # 1.4 Normalise u
+        u /= np.sqrt(np.dot(u.T, u)) + eps
+        
+        # 2.1 Calculate M_u : the Y projections
+        M_u = np.dot(M.T, u)
+        # 2.2 Find lambda_y : the Y penalty
+        if y_var == 0:
+            lambda_y = 0
+        else:
+            lambda_y = sorted(np.absolute(M_u))[y_var]
+        # 2.3 Update v : the Y weights
+        v = _soft_thresholding(M_u, lambda_y)
+        # 2.4 Normalise v
+        if norm_y_weights:
+            v /= np.sqrt(np.dot(v.T, v)) + eps
+        
+        u_diff = u - u_old
+        v_diff = v - v_old
+        if np.dot(u_diff.T, u_diff) < tol and np.dot(v_diff.T, v_diff) < tol:
+            break
+        if ite == max_iter:
+            warnings.warn('Maximum number of iterations reached',
+                          ConvergenceWarning)
+            break
+        u_old = u
+        v_old = v
+        ite += 1
+    return u, v, ite
+
+
+def _gpls_inner_loop(X, Y, x_group, y_group, x_ind, y_ind,
+                       max_iter=500, tol=1e-06, norm_y_weights=True):
+    """Inner loop for iterative tuning of gPLS algorithm.
+    
+    Estimates PLS weights which solve the group PLS objective function.
+    See Benoît Liquet et al (2015) for details.
+    """                
+    u_old, v_old, M = svd_cross_product(X, Y, return_matrix=True)
+    ite = 1
+    eps = np.finfo(X.dtype).eps
+    
+    u = np.zeros_like(u_old)
+    v = np.zeros_like(v_old)
+    k = len(x_ind) + 1
+    l = len(y_ind) + 1
+    x_penalty = np.zeros(k)
+    y_penalty = np.zeros(l)
+    x_range = [range(x_ind[i], x_ind[i+1]) for i in range(k)]
+    y_range = [range(y_ind[i], y_ind[i+1]) for i in range(l)]
+    # Inner loop of gPLS
+    while True:      
+        # 1.1 Calculate M_v : the X projections
+        M_v = np.dot(M, v_old)
+        # 1.2 Calculate contribution of X groups to M_v
+        for group in range(k):
+            arr = np.array(M_v[x_range[group]])
+            x_penalty[group] = 2 * np.sqrt(np.dot(arr.T, arr))
+            x_penalty[group] /= np.sqrt(len(arr))
+        # 1.3 Find lambda_x : the X penalty
+        if x_group == 0:
+            lambda_x = 0
+        else:
+            lambda_x = sorted(np.absolute(x_penalty))[x_group]        
+        # Groups of X variables are penalised using the group thresholding
+        # function and the appropriate penalty calculated from the magnitude
+        # of the projections for each group.
+        # 1.4 Update u : the X weights        
+        for group in range(k):
+            arr = np.array(M_v[x_range[group]])
+            u[x_range[group]] = _group_thresholding(
+                    arr, lambda_x, x_penalty[group])
+        # 1.5 Normalise u
+        u /= np.sqrt(np.dot(u.T, u)) + eps
+        
+        # 2.1 Calculate M_u : the Y projections
+        M_u = np.dot(M.T, u)
+        # 2.2 Calculate contribution of Y groups to M_u
+        for group in range(l):
+            arr = np.array(M_u[y_range[group]])
+            y_penalty[group] = 2 * np.sqrt(np.dot(arr.T, arr))
+            y_penalty[group] /= np.sqrt(len(arr))
+        # 2.3 Find lambda_y : the Y penalty
+        if y_group == 0:
+            lambda_y = 0
+        else:
+            lambda_y = sorted(np.absolute(y_penalty))[y_group]        
+        # 2.4 Update v : the Y weights
+        for group in range(l):
+            arr = np.array(M_u[y_range[group]])
+            v[y_range[group]] = _group_thresholding(
+                    arr, lambda_y, y_penalty[group])
+        # 2.5 Normalise u
+        if norm_y_weights:
+            v /= np.sqrt(np.dot(v.T, v)) + eps        
+        
+        u_diff = u - u_old
+        v_diff = v - v_old
+        if np.dot(u_diff.T, u_diff) < tol and np.dot(v_diff.T, v_diff) < tol:
+            break
+        if ite == max_iter:
+            warnings.warn('Maximum number of iterations reached',
+                          ConvergenceWarning)
+            break
+        u_old = u
+        v_old = v
+        ite += 1
+    return u, v, ite
+
+
+def _sgpls_inner_loop(X, Y, x_group, y_group, x_ind, y_ind,
+                     alpha_x, alpha_y, max_iter=500,
+                     tol=1e-06, norm_y_weights=True,
+                     lambda_tol=np.finfo(float).eps**0.25,
+                     max_lambda=1e+05, lambda_niter=1000):
+    """Inner loop for iterative tuning of sgPLS algorithm.
+    
+    Estimates PLS weights which solve the sparse group PLS objective function.
+    See Benoît Liquet et al (2015) for details.  
+    Lambda thresholds are solved numerically with scipy.optimize.brentq.
+    Method searches values of lambda between 0 and max_lambda (default 1e+05)
+    within the maximum number of iterations, lambda_niter (default 1000).
+    """
+    u_old, v_old, M = svd_cross_product(X, Y, return_matrix=True)
+    ite = 1
+    eps = np.finfo(X.dtype).eps
+    
+    u = np.zeros_like(u_old)
+    v = np.zeros_like(v_old)
+    k = len(x_ind) + 1
+    l = len(y_ind) + 1
+    x_penalty = np.zeros(k)
+    y_penalty = np.zeros(l)
+    x_range = [range(x_ind[i], x_ind[i+1]) for i in range(k)]
+    y_range = [range(y_ind[i], y_ind[i+1]) for i in range(l)]
+    # Inner loop of sgPLS
+    while True:      
+        # 1.1 Calculate M_v : the X projections
+        M_v = np.dot(M, v_old)
+        # 1.2 Calculate contribution of X groups to M_v
+        for group in range(k):
+            arr = np.array(M_v[x_range[group]])
+            x_penalty[group] = brentq(
+                    _lambda_quadratic,
+                    a=0, b=max_lambda,
+                    args=(arr, alpha_x),
+                    xtol=lambda_tol,
+                    maxiter=lambda_niter)
+        # 1.3 Find lambda_x : the X penalty
+        if x_group == 0:
+            lambda_x = sorted(np.absolute(x_penalty))[0] - 1
+        else:
+            lambda_x = sorted(np.absolute(x_penalty))[x_group]        
+        # Lambda must exceed a particular threshold for penalisation.
+        # Therefore, it is sufficient to subtract 1 to break the condition and
+        # apply penalisation.
+        # See [Benoit Liquet 2015], criterion (10) and criterion (16).
+        # 1.4 Update u : the X weights
+        for group in range(k):
+            arr = np.array(M_v[x_range[group]])
+            u[x_range[group]] = _sparse_group_thresholding(
+                    arr, lambda_x, x_penalty[group], alpha_x)     
+        # 1.5 Normalise u
+        u /= np.sqrt(np.dot(u.T, u)) + eps
+        
+        # 2.1 Calculate M_u : the Y projections
+        M_u = np.dot(M.T, u)
+        # 2.2 Calculate contribution of Y groups to M_u
+        for group in range(l):
+            arr = np.array(M_u[y_range[group]])
+            y_penalty[group] = brentq(
+                    _lambda_quadratic,
+                    a=0, b=max_lambda,
+                    args=(arr, alpha_y),
+                    xtol=lambda_tol,
+                    maxiter=lambda_niter)
+        # 2.3 Find lambda_y : the Y penalty
+        if y_group == 0:
+            lambda_y = sorted(np.absolute(y_penalty))[0] - 1
+        else:
+            lambda_y = sorted(np.absolute(y_penalty))[y_group]       
+        # 2.4 Update v : the Y weights
+        for group in range(l):
+            arr = np.array(M_u[y_range[group]])
+            v[y_range[group]] = _sparse_group_thresholding(
+                    arr, lambda_y, y_penalty[group], alpha_y)      
+        # 2.5 Normalise u
+        if norm_y_weights:
+            v /= np.sqrt(np.dot(v.T, v)) + eps        
+        
+        u_diff = u - u_old
+        v_diff = v - v_old
+        if np.dot(u_diff.T, u_diff) < tol and np.dot(v_diff.T, v_diff) < tol:
+            break
+        if ite == max_iter:
+            warnings.warn('Maximum number of iterations reached',
+                          ConvergenceWarning)
+            break
+        u_old = u
+        v_old = v
+        ite += 1
+    return u, v, ite
 
 
 class _PLS(TransformerMixin, RegressorMixin, MultiOutputMixin, BaseEstimator,
@@ -222,9 +421,8 @@ class _PLS(TransformerMixin, RegressorMixin, MultiOutputMixin, BaseEstimator,
     --------
     PLSCanonical
     PLSRegression
-    CCA
-    PLS_SVD
     """
+    model = "pls"
 
     @abstractmethod
     def __init__(self, n_components=2, scale=True, deflation_mode="regression",
@@ -266,17 +464,68 @@ class _PLS(TransformerMixin, RegressorMixin, MultiOutputMixin, BaseEstimator,
         p = X.shape[1]
         q = Y.shape[1]
 
+        # Input validation
+        # ----------------
+        # sPLS model: sparsity parameters
+        if self.model == "spls":
+            self.x_vars = pls_array(
+                    array=self.x_vars, min_length=self.n_components,
+                    max_length=self.n_components, min_features=0,
+                    max_features=p)                
+            self.y_vars = pls_array(
+                    array=self.y_vars, min_length=self.n_components,
+                    max_length=self.n_components, min_features=0,
+                    max_features=q)
+            
+            x_sparsity = sparsity_conversion(self.x_vars, p)
+            y_sparsity = sparsity_conversion(self.y_vars, q)
+        
+        # gPLS/sgPLS model: sparsity parameters and blocking inputs
+        if self.model in ("gpls", "sgpls"):
+            self.x_block = pls_blocks(self.x_block, 0, p)
+            self.y_block = pls_blocks(self.y_block, 0, q)
+            k = len(self.x_block) + 1
+            l = len(self.y_block) + 1
+            
+            self.x_groups = pls_array(
+                    array=self.x_groups, min_length=self.n_components,
+                    max_length=self.n_components, min_features=0,
+                    max_features=k)
+            self.y_groups = pls_array(
+                    array=self.y_groups, min_length=self.n_components,
+                    max_length=self.n_components, min_features=0,
+                    max_features=l)
+            
+            x_ind = np.insert(self.x_block, (0, k-1), (0, p))
+            y_ind = np.insert(self.y_block, (0, l-1), (0, q))
+            x_sparsity = sparsity_conversion(self.x_groups, k)
+            y_sparsity = sparsity_conversion(self.y_groups, l)
+        
+        # sgPLS model: group sparsity mixin parameters
+        if self.model == "sgpls":
+            self.alpha_x = pls_array(
+                    array=self.alpha_x, min_length=self.n_components,
+                    max_length=self.n_components, min_features=0,
+                    max_features=1)
+            self.alpha_y = pls_array(
+                    array=self.alpha_y, min_length=self.n_components,
+                    max_length=self.n_components, min_features=0,
+                    max_features=1)
+
         if self.n_components < 1 or self.n_components > p:
             raise ValueError('Invalid number of components: %d' %
                              self.n_components)
-        if self.algorithm not in ("svd", "nipals"):
-            raise ValueError("Got algorithm %s when only 'svd' "
-                             "and 'nipals' are known" % self.algorithm)
+        if self.algorithm not in ("svd", "nipals", None):
+            raise ValueError("Got algorithm %s when only 'svd', "
+                             "'nipals' and None are known" % self.algorithm)
         if self.algorithm == "svd" and self.mode == "B":
             raise ValueError('Incompatible configuration: mode B is not '
                              'implemented with svd algorithm')
         if self.deflation_mode not in ["canonical", "regression"]:
             raise ValueError('The deflation mode is unknown')
+        if self.algorithm == None and self.model == "pls":
+            raise ValueError("Incompatible configuration: only 'svd' and "
+                             "'nipals' can be implemented with PLS model")
         # Scale (in place)
         X, Y, self.x_mean_, self.y_mean_, self.x_std_, self.y_std_ = (
             _center_scale_xy(X, Y, self.scale))
@@ -292,8 +541,9 @@ class _PLS(TransformerMixin, RegressorMixin, MultiOutputMixin, BaseEstimator,
         self.y_loadings_ = np.zeros((q, self.n_components))
         self.n_iter_ = []
 
-        # NIPALS algo: outer loop, over components
-        Y_eps = np.finfo(Yk.dtype).eps
+        # Outer loop, over components
+        if self.model == "pls":
+            Y_eps = np.finfo(Yk.dtype).eps
         for k in range(self.n_components):
             if np.all(np.dot(Yk.T, Yk) < np.finfo(np.double).eps):
                 # Yk constant
@@ -301,18 +551,50 @@ class _PLS(TransformerMixin, RegressorMixin, MultiOutputMixin, BaseEstimator,
                 break
             # 1) weights estimation (inner loop)
             # -----------------------------------
-            if self.algorithm == "nipals":
-                # Replace columns that are all close to zero with zeros
-                Yk_mask = np.all(np.abs(Yk) < 10 * Y_eps, axis=0)
-                Yk[:, Yk_mask] = 0.0
-
-                x_weights, y_weights, n_iter_ = \
-                    _nipals_twoblocks_inner_loop(
-                        X=Xk, Y=Yk, mode=self.mode, max_iter=self.max_iter,
-                        tol=self.tol, norm_y_weights=self.norm_y_weights)
-                self.n_iter_.append(n_iter_)
-            elif self.algorithm == "svd":
-                x_weights, y_weights = _svd_cross_product(X=Xk, Y=Yk)
+            if self.model == "pls":
+                if self.algorithm == "nipals":
+                    # Replace columns that are all close to zero with zeros
+                    Yk_mask = np.all(np.abs(Yk) < 10 * Y_eps, axis=0)
+                    Yk[:, Yk_mask] = 0.0
+            
+                    x_weights, y_weights, n_iter_ = \
+                        _nipals_twoblocks_inner_loop(
+                            X=Xk, Y=Yk, mode=self.mode, max_iter=self.max_iter,
+                            tol=self.tol, norm_y_weights=self.norm_y_weights)
+                elif self.algorithm == "svd":
+                    x_weights, y_weights = svd_cross_product(
+                            X=Xk, Y=Yk, return_matrix=False)
+            if self.model == "spls":
+                x_weights, y_weights, n_iter = \
+                    _spls_inner_loop(
+                            X=Xk, Y=Yk,
+                            x_var=x_sparsity[k], y_var=y_sparsity[k],
+                            max_iter=self.max_iter, tol=self.tol,
+                            norm_y_weights=self.norm_y_weights)
+            if self.model == "gpls":
+                x_weights, y_weights, n_iter = \
+                    _gpls_inner_loop(
+                            X=Xk, Y=Yk,
+                            x_group=x_sparsity[k], y_group=y_sparsity[k],
+                            x_ind=x_ind, y_ind=y_ind,
+                            max_iter=self.max_iter, tol=self.tol,
+                            norm_y_weights=self.norm_y_weights)
+            if self.model == "sgpls":
+                x_weights, y_weights, n_iter = \
+                    _sgpls_inner_loop(
+                            X=Xk, Y=Yk,
+                            x_group=x_sparsity[k], y_group=y_sparsity[k],
+                            x_ind=x_ind, y_ind=y_ind,
+                            alpha_x=self.alpha_x[k], alpha_y=self.alpha_y[k],
+                            max_iter=self.max_iter, tol=self.tol,
+                            norm_y_weights=self.norm_y_weights,
+                            lambda_tol=self.lambda_tol,
+                            max_lambda=self.max_lambda,
+                            lambda_niter=self.lambda_niter)
+            try:
+                self.n_iter_.append(n_iter_)            
+            except NameError:
+                pass
             # Forces sign stability of x_weights and y_weights
             # Sign undeterminacy issue from svd if algorithm == "svd"
             # and from platform dependent computation if algorithm == 'nipals'
@@ -765,11 +1047,6 @@ class PLSCanonical(_PLS):
     
     Tenenhaus, M. (1998). La regression PLS: theorie et pratique. Paris:
     Editions Technic.
-    
-    See also
-    --------
-    CCA
-    PLSSVD
     """
 
     def __init__(self, n_components=2, scale=True, algorithm="nipals",
