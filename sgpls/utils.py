@@ -6,7 +6,7 @@ from scipy.linalg import svd
 from sklearn.utils import check_array
 
 
-def _svd_cross_product(X, Y, return_matrix=False):
+def svd_cross_product(X, Y, return_matrix=False):
     """Returns singular vectors from matrix product of X.T and Y.
     
     NOTE: 'return_matrix' parameter added to return matrix product of X.T 
@@ -22,33 +22,7 @@ def _svd_cross_product(X, Y, return_matrix=False):
         return u, v
 
 
-def _center_scale_xy(X, Y, scale=True):
-    """Center X, Y and scale if the scale parameter==True
-        
-    Returns
-    -------
-        X, Y, x_mean, y_mean, x_std, y_std
-    """
-    # center
-    x_mean = X.mean(axis=0)
-    X -= x_mean
-    y_mean = Y.mean(axis=0)
-    Y -= y_mean
-    # scale
-    if scale:
-        x_std = X.std(axis=0, ddof=1)
-        x_std[x_std == 0.0] = 1.0
-        X /= x_std
-        y_std = Y.std(axis=0, ddof=1)
-        y_std[y_std == 0.0] = 1.0
-        Y /= y_std
-    else:
-        x_std = np.ones(X.shape[1])
-        y_std = np.ones(Y.shape[1])
-    return X, Y, x_mean, y_mean, x_std, y_std
-
-
-def _sparsity_conversion(array, n):
+def sparsity_conversion(array, n):
     """Sparsity conversion function.
     
     Converts number of non-zero variables/groups of variables to number of
@@ -147,7 +121,7 @@ def _validate_block(array):
     return array
 
 
-def _pls_array(array, min_length, max_length, min_entry=0, max_entry):
+def pls_array(array, min_length, max_length, min_entry=0, max_entry):
     """Validates input arguments for sparse extensions of PLS.
     
     Combination of _check_1d plus additional checks.
@@ -211,7 +185,7 @@ def _pls_array(array, min_length, max_length, min_entry=0, max_entry):
         return array_converted
 
 
-def _pls_blocks(array, min_entry=0, max_entry):
+def pls_blocks(array, min_entry=0, max_entry):
     """Validate blocking inputs for gPLS and sgPLS
     
     Combination of _pls_array, _validate_block plus additional checks.
