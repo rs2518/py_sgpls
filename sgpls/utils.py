@@ -414,7 +414,7 @@ def _validate_block(array):
     return array
 
 
-def pls_array(array, min_length, max_length, min_entry=0, max_entry):
+def pls_array(array, max_length, min_length, max_entry, min_entry=0):
     """Validates input arguments for sparse extensions of PLS.
     
     Combination of _check_1d plus additional checks.
@@ -478,7 +478,7 @@ def pls_array(array, min_length, max_length, min_entry=0, max_entry):
         return array_converted
 
 
-def pls_blocks(array, min_entry=0, max_entry):
+def pls_blocks(array, max_entry, min_entry=0):
     """Validate blocking inputs for gPLS and sgPLS
     
     Combination of _pls_array, _validate_block plus additional checks.
@@ -511,7 +511,7 @@ def pls_blocks(array, min_entry=0, max_entry):
     
     else:
         # Input validation
-        array_converted = _pls_array(array, min_length=1,
+        array_converted = pls_array(array, min_length=1,
                                      max_length=max_entry,
                                      min_entry=0,
                                      max_entry=max_entry)

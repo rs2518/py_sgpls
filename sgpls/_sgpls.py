@@ -1,3 +1,4 @@
+import numpy as np
 from ._gpls import _gPLS
 
 
@@ -38,24 +39,24 @@ class _sgPLS(_gPLS):
         An array that describes the groupings of X variables. The entries 
         correspond to the starting index of each X group.
         
-    y_block : array, [l_groups]
-        An array that describes the groupings of Y variables. The entries 
-        correspond to the starting index of each Y group.
-        If None, all Y variables form a single group.
-        
     x_groups : array, [n_components]
         The number of non-zero groups of X variables (as defined by x_block)
         in the corresponding weights vector for each component.
-    
-    y_groups : array, [n_components], (default None)
-        The number of non-zero groups of Y variables (as defined by y_block)
-        in the corresponding weights vector for each component.
-        If None, no Y groups are penalised.
     
     alpha_x : array, [n_components]
         Mixing parameter (between 0 and 1) applying sparsity within X groups
         for each component.
     
+    y_block : array, [l_groups], (default None)
+        An array that describes the groupings of Y variables. The entries 
+        correspond to the starting index of each Y group.
+        If None, all Y variables form a single group.
+
+    y_groups : array, [n_components], (default None)
+        The number of non-zero groups of Y variables (as defined by y_block)
+        in the corresponding weights vector for each component.
+        If None, no Y groups are penalised.
+
     alpha_y : array, [n_components], (default None)
         Mixing parameter (between 0 and 1) applying sparsity within Y groups
         for each component.
@@ -99,8 +100,7 @@ class _sgPLS(_gPLS):
         The coefficients of the linear model: ``Y = X coef_ + Err``
     
     n_iter_ : array-like
-        Number of iterations of the NIPALS inner loop for each
-        component. Not useful if the algorithm given is "svd".
+        Number of iterations of the inner loop for each component.
     
     Notes
     -----
@@ -139,16 +139,15 @@ class _sgPLS(_gPLS):
     """
     model = "sgpls"
     
-    def __init__(self, n_components=2, x_block, y_block=None,
-                 x_groups, y_groups=None, alpha_x, alpha_y=None,
-                 scale=True, deflation_mode="regression",
+    def __init__(self, x_block, x_groups, alpha_x,
+                 y_block=None, y_groups=None, alpha_y=None,
+                 n_components=2, scale=True, deflation_mode="regression",
                  norm_y_weights=False, max_iter=500, tol=1e-06,
                  lambda_tol=np.finfo(float).eps**0.25,
                  max_lambda=1e+05, lambda_niter=1000, copy=True):
-        super().__init__(n_components, x_block, y_block,
-                 x_groups, y_groups, scale, deflation_mode,
-             algorithm, mode, norm_y_weights,
-             max_iter, tol, copy)
+        super().__init__(x_block, x_groups, y_block, y_groups,
+                         n_components, scale, deflation_mode,
+                         norm_y_weights, max_iter, tol, copy)
         self.alpha_x = alpha_x
         self.alpha_y = alpha_y
         self.lambda_tol = lambda_tol
@@ -172,35 +171,34 @@ class sgPLSRegression(_sgPLS):
         An array that describes the groupings of X variables. The entries 
         correspond to the starting index of each X group.
         
-    y_block : array, [l_groups]
-        An array that describes the groupings of Y variables. The entries 
-        correspond to the starting index of each Y group.
-        If None, all Y variables form a single group.
-        
     x_groups : array, [n_components]
         The number of non-zero groups of X variables (as defined by x_block)
         in the corresponding weights vector for each component.
-    
-    y_groups : array, [n_components], (default None)
-        The number of non-zero groups of Y variables (as defined by y_block)
-        in the corresponding weights vector for each component.
-        If None, no Y groups are penalised.
     
     alpha_x : array, [n_components]
         Mixing parameter (between 0 and 1) applying sparsity within X groups
         for each component.
     
+    y_block : array, [l_groups], (default None)
+        An array that describes the groupings of Y variables. The entries 
+        correspond to the starting index of each Y group.
+        If None, all Y variables form a single group.
+
+    y_groups : array, [n_components], (default None)
+        The number of non-zero groups of Y variables (as defined by y_block)
+        in the corresponding weights vector for each component.
+        If None, no Y groups are penalised.
+
     alpha_y : array, [n_components], (default None)
         Mixing parameter (between 0 and 1) applying sparsity within Y groups
         for each component.
-        If None, no sparsity is applied within the Y groups.    
+        If None, no sparsity is applied within the Y groups.  
     
     scale : boolean, (default True)
         whether to scale the data
         
-    max_iter : an integer, (default 500)
-        the maximum number of iterations of the NIPALS inner loop (used
-        only if algorithm="nipals")
+    max_iter : int, (default 500)
+        The maximum number of iterations of inner loop
         
     tol : non-negative real, (default 1e-06)
         Tolerance used in the iterative algorithm.
@@ -239,8 +237,7 @@ class sgPLSRegression(_sgPLS):
         The coefficients of the linear model: ``Y = X coef_ + Err``
         
     n_iter_ : array-like
-        Number of iterations of the NIPALS inner loop for each
-        component.
+        Number of iterations of the inner loop for each component.
         
     Notes
     -----
@@ -285,18 +282,18 @@ class sgPLSRegression(_sgPLS):
     1 January 2016, Pages 35–42, https://doi.org/10.1093/bioinformatics/btv535    
     """
 
-    def __init__(self, n_components=2, x_block, y_block=None,
-                 x_groups, y_groups=None, alpha_x, alpha_y=None,
-                 scale=True, max_iter=500, tol=1e-06,
+    def __init__(self, x_block, x_groups, alpha_x,
+                 y_block=None, y_groups=None, alpha_y=None,
+                 n_components=2, scale=True, max_iter=500, tol=1e-06,
                  lambda_tol=np.finfo(float).eps**0.25,
                  max_lambda=1e+05, lambda_niter=1000, copy=True):
-        super().__init__(
-            n_components=n_components, x_block, y_block=None,
-            x_groups, y_groups=None, alpha_x, alpha_y=None,
-            scale=True, deflation_mode="regression", mode="A",
-            algorithm=None, norm_y_weights=False, max_iter=max_iter,
-            tol=tol, lambda_tol=lambda_tol, max_lambda=max_lambda,
-            lambda_niter=lambda_niter, copy=copy)
+        super().__init__(x_block, x_groups, alpha_x,
+                         y_block=y_block, y_groups=y_groups, alpha_y=alpha_y,
+                         n_components=n_components, scale=scale,
+                         deflation_mode="regression", norm_y_weights=False,
+                         max_iter=max_iter, tol=tol, lambda_tol=lambda_tol,
+                         max_lambda=max_lambda, lambda_niter=lambda_niter,
+                         copy=copy)
 
 
 class sgPLSCanonical(_sgPLS):
@@ -315,35 +312,34 @@ class sgPLSCanonical(_sgPLS):
         An array that describes the groupings of X variables. The entries 
         correspond to the starting index of each X group.
         
-    y_block : array, [l_groups]
-        An array that describes the groupings of Y variables. The entries 
-        correspond to the starting index of each Y group.
-        If None, all Y variables form a single group.
-        
     x_groups : array, [n_components]
         The number of non-zero groups of X variables (as defined by x_block)
         in the corresponding weights vector for each component.
-    
-    y_groups : array, [n_components], (default None)
-        The number of non-zero groups of Y variables (as defined by y_block)
-        in the corresponding weights vector for each component.
-        If None, no Y groups are penalised.
     
     alpha_x : array, [n_components]
         Mixing parameter (between 0 and 1) applying sparsity within X groups
         for each component.
     
+    y_block : array, [l_groups], (default None)
+        An array that describes the groupings of Y variables. The entries 
+        correspond to the starting index of each Y group.
+        If None, all Y variables form a single group.
+
+    y_groups : array, [n_components], (default None)
+        The number of non-zero groups of Y variables (as defined by y_block)
+        in the corresponding weights vector for each component.
+        If None, no Y groups are penalised.
+
     alpha_y : array, [n_components], (default None)
         Mixing parameter (between 0 and 1) applying sparsity within Y groups
         for each component.
-        If None, no sparsity is applied within the Y groups.    
+        If None, no sparsity is applied within the Y groups.  
     
     scale : boolean, (default True)
         whether to scale the data
         
-    max_iter : an integer, (default 500)
-        the maximum number of iterations of the NIPALS inner loop (used
-        only if algorithm="nipals")
+    max_iter : int, (default 500)
+        The maximum number of iterations of inner loop
         
     tol : non-negative real, (default 1e-06)
         Tolerance used in the iterative algorithm.
@@ -382,8 +378,7 @@ class sgPLSCanonical(_sgPLS):
         The coefficients of the linear model: ``Y = X coef_ + Err``
         
     n_iter_ : array-like
-        Number of iterations of the NIPALS inner loop for each
-        component.
+        Number of iterations of the inner loop for each component.
         
     Notes
     -----
@@ -428,15 +423,15 @@ class sgPLSCanonical(_sgPLS):
     1 January 2016, Pages 35–42, https://doi.org/10.1093/bioinformatics/btv535    
     """
 
-    def __init__(self, n_components=2, x_block, y_block=None,
-                 x_groups, y_groups=None, alpha_x, alpha_y=None,
-                 scale=True, max_iter=500, tol=1e-06,
+    def __init__(self, x_block, x_groups, alpha_x,
+                 y_block=None, y_groups=None, alpha_y=None,
+                 n_components=2, scale=True, max_iter=500, tol=1e-06,
                  lambda_tol=np.finfo(float).eps**0.25,
                  max_lambda=1e+05, lambda_niter=1000, copy=True):
-        super().__init__(
-            n_components=n_components, x_block, y_block=None,
-            x_groups, y_groups=None, alpha_x, alpha_y=None,
-            scale=True, deflation_mode="canonical", mode="A",
-            algorithm=None, norm_y_weights=False, max_iter=max_iter,
-            tol=tol, lambda_tol=lambda_tol, max_lambda=max_lambda,
-            lambda_niter=lambda_niter, copy=copy)
+        super().__init__(x_block, x_groups, alpha_x,
+                         y_block=y_block, y_groups=y_groups, alpha_y=alpha_y,
+                         n_components=n_components, scale=scale,
+                         deflation_mode="canonical", norm_y_weights=False,
+                         max_iter=max_iter, tol=tol, lambda_tol=lambda_tol,
+                         max_lambda=max_lambda, lambda_niter=lambda_niter,
+                         copy=copy)

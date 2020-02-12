@@ -6,7 +6,7 @@ __all__ = ['sPLSCanonical', 'sPLSRegression']
 
 class _sPLS(_PLS):
     """Sparse Partial Least Squares (sPLS)
-        
+    
     This class implements the sPLS algorithm.
     Sparsity is enforced via the interpretable features x_vars, y_vars
     (the number of non-zero X and Y variables contributing to the loadings
@@ -78,8 +78,7 @@ class _sPLS(_PLS):
         The coefficients of the linear model: ``Y = X coef_ + Err``
     
     n_iter_ : array-like
-        Number of iterations of the NIPALS inner loop for each
-        component. Not useful if the algorithm given is "svd".
+        Number of iterations of the inner loop for each component.
     
     References
     ----------
@@ -101,11 +100,11 @@ class _sPLS(_PLS):
     """
     model = "spls"
     
-    def __init__(self, n_components=2, x_vars, y_vars=None, scale=True,
+    def __init__(self, x_vars, y_vars=None, n_components=2, scale=True,
                  deflation_mode="regression", norm_y_weights=False,
                  max_iter=500, tol=1e-06, copy=True):
-        super().__init__(n_components, scale, deflation_mode, mode="A",
-             algorithm=None, norm_y_weights, max_iter, tol, copy)
+        super().__init__(n_components, scale, deflation_mode, norm_y_weights,
+                         max_iter, tol, copy, algorithm=None, mode="A")
         self.x_vars = x_vars
         self.y_vars = y_vars
 
@@ -134,9 +133,8 @@ class sPLSRegression(_sPLS):
     scale : boolean, (default True)
         whether to scale the data
         
-    max_iter : an integer, (default 500)
-        the maximum number of iterations of the NIPALS inner loop (used
-        only if algorithm="nipals")
+    max_iter : int, (default 500)
+        The maximum number of iterations of inner loop
         
     tol : non-negative real, (default 1e-06)
         Tolerance used in the iterative algorithm.
@@ -175,8 +173,7 @@ class sPLSRegression(_sPLS):
         The coefficients of the linear model: ``Y = X coef_ + Err``
         
     n_iter_ : array-like
-        Number of iterations of the NIPALS inner loop for each
-        component.
+        Number of iterations of the inner loop for each component.
         
     Notes
     -----
@@ -205,12 +202,12 @@ class sPLSRegression(_sPLS):
     1 January 2016, Pages 35–42, https://doi.org/10.1093/bioinformatics/btv535
     """
 
-    def __init__(self, n_components=2, x_vars, y_vars=None, scale=True,
+    def __init__(self, x_vars, y_vars=None, n_components=2, scale=True,
                  max_iter=500, tol=1e-06, copy=True):
         super().__init__(
-            n_components=n_components, x_vars=x_vars, y_vars=y_vars,
-            scale=scale, deflation_mode="regression", mode="A",
-            algorithm=None, norm_y_weights=False, max_iter=max_iter,
+            x_vars, y_vars=y_vars, n_components=n_components,
+            scale=scale, deflation_mode="regression",
+            norm_y_weights=False, max_iter=max_iter,
             tol=tol, copy=copy)
 
 
@@ -238,12 +235,11 @@ class sPLSCanonical(_sPLS):
     scale : boolean, (default True)
         whether to scale the data
         
-    max_iter : an integer, (default 500)
-        the maximum number of iterations of the NIPALS inner loop (used
-        only if algorithm="nipals")
+    max_iter : int, (default 500)
+        The maximum number of iterations of inner loop
         
     tol : non-negative real, (default 1e-06)
-        Tolerance used in the iterative algorithm.
+        The tolerance used in the iterative algorithm.
         
     copy : boolean, (default True)
         Whether the deflation should be done on a copy. Let the default
@@ -279,8 +275,7 @@ class sPLSCanonical(_sPLS):
         The coefficients of the linear model: ``Y = X coef_ + Err``
         
     n_iter_ : array-like
-        Number of iterations of the NIPALS inner loop for each
-        component.
+        Number of iterations of the inner loop for each component.
         
     Notes
     -----
@@ -309,10 +304,10 @@ class sPLSCanonical(_sPLS):
     1 January 2016, Pages 35–42, https://doi.org/10.1093/bioinformatics/btv535
     """
 
-    def __init__(self, n_components=2, x_vars, y_vars=None, scale=True,
+    def __init__(self, x_vars, y_vars=None, n_components=2, scale=True,
                  max_iter=500, tol=1e-06, copy=True):
         super().__init__(
-            n_components=n_components, x_vars=x_vars, y_vars=y_vars,
-            scale=scale, deflation_mode="canonical", mode="A",
-            algorithm=None, norm_y_weights=False, max_iter=max_iter,
+            x_vars, y_vars=y_vars, n_components=n_components,
+            scale=scale, deflation_mode="canonical",
+            norm_y_weights=False, max_iter=max_iter,
             tol=tol, copy=copy)

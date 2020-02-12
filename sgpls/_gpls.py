@@ -36,15 +36,15 @@ class _gPLS(_PLS):
         An array that describes the groupings of X variables. The entries 
         correspond to the starting index of each X group.
         
+    x_groups : array, [n_components]
+        The number of non-zero groups of X variables (as defined by x_block)
+        in the corresponding weights vector for each component.
+
     y_block : array, [l_groups]
         An array that describes the groupings of Y variables. The entries 
         correspond to the starting index of each Y group.
         If None, all Y variables form a single group.
-        
-    x_groups : array, [n_components]
-        The number of non-zero groups of X variables (as defined by x_block)
-        in the corresponding weights vector for each component.
-    
+
     y_groups : array, [n_components], (default None)
         The number of non-zero groups of Y variables (as defined by y_block)
         in the corresponding weights vector for each component.
@@ -88,8 +88,7 @@ class _gPLS(_PLS):
         The coefficients of the linear model: ``Y = X coef_ + Err``
     
     n_iter_ : array-like
-        Number of iterations of the NIPALS inner loop for each
-        component. Not useful if the algorithm given is "svd".
+        Number of iterations of the inner loop for each component.
     
     Notes
     -----
@@ -128,12 +127,11 @@ class _gPLS(_PLS):
     """
     model = "gpls"
 
-    def __init__(self, n_components=2, x_block, y_block=None,
-                 x_groups, y_groups=None, scale=True,
-                 deflation_mode="regression", norm_y_weights=False,
-                 max_iter=500, tol=1e-06, copy=True):
-        super().__init__(n_components, scale, deflation_mode, mode="A",
-             algorithm=None, norm_y_weights, max_iter, tol, copy)
+    def __init__(self, x_block, x_groups, y_block=None, y_groups=None,
+                 n_components=2, scale=True, deflation_mode="regression",
+                 norm_y_weights=False, max_iter=500, tol=1e-06, copy=True):
+        super().__init__(n_components, scale, deflation_mode, norm_y_weights,
+                         max_iter, tol, copy, algorithm=None, mode="A")
         self.x_block = x_block
         self.y_block = y_block
         self.x_groups = x_groups
@@ -156,26 +154,26 @@ class gPLSRegression(_gPLS):
         An array that describes the groupings of X variables. The entries 
         correspond to the starting index of each X group.
         
+    x_groups : array, [n_components]
+        The number of non-zero groups of X variables (as defined by x_block)
+        in the corresponding weights vector for each component.
+
     y_block : array, [l_groups]
         An array that describes the groupings of Y variables. The entries 
         correspond to the starting index of each Y group.
         If None, all Y variables form a single group.
-        
-    x_groups : array, [n_components]
-        The number of non-zero groups of X variables (as defined by x_block)
-        in the corresponding weights vector for each component.
-    
+
     y_groups : array, [n_components], (default None)
         The number of non-zero groups of Y variables (as defined by y_block)
         in the corresponding weights vector for each component.
         If None, no Y groups are penalised.
         
-    scale : boolean, (default True)
-        whether to scale the data
-        
-    max_iter : an integer, (default 500)
-        the maximum number of iterations of the NIPALS inner loop (used
-        only if algorithm="nipals")
+    scale : boolean, scale data, (default True)
+    
+    deflation_mode : str, "canonical" or "regression". See notes.
+              
+    max_iter : int, (default 500)
+        The maximum number of iterations of inner loop
         
     tol : non-negative real, (default 1e-06)
         Tolerance used in the iterative algorithm.
@@ -214,8 +212,7 @@ class gPLSRegression(_gPLS):
         The coefficients of the linear model: ``Y = X coef_ + Err``
         
     n_iter_ : array-like
-        Number of iterations of the NIPALS inner loop for each
-        component.
+        Number of iterations of the inner loop for each component.
         
     Notes
     -----
@@ -260,15 +257,14 @@ class gPLSRegression(_gPLS):
     1 January 2016, Pages 35–42, https://doi.org/10.1093/bioinformatics/btv535    
     """
 
-    def __init__(self, n_components=2, x_block, y_block=None,
-                 x_groups, y_groups=None, scale=True,
-                 max_iter=500, tol=1e-06, copy=True):
+    def __init__(self, x_block, x_groups, y_block=None, y_groups=None,
+                 n_components=2, scale=True, max_iter=500, tol=1e-06,
+                 copy=True):
         super().__init__(
-            n_components=n_components, x_block, y_block=None,
-            x_groups, y_groups=None, scale=scale,
-            deflation_mode="regression", mode="A",
-            algorithm=None, norm_y_weights=False, max_iter=max_iter,
-            tol=tol, copy=copy)
+            x_block, x_groups, y_block=None, y_groups=None,
+            n_components=n_components, scale=scale,
+            deflation_mode="regression", norm_y_weights=False,
+            max_iter=max_iter, tol=tol, copy=copy)
 
 
 class gPLSCanonical(_gPLS):
@@ -287,26 +283,26 @@ class gPLSCanonical(_gPLS):
         An array that describes the groupings of X variables. The entries 
         correspond to the starting index of each X group.
         
+    x_groups : array, [n_components]
+        The number of non-zero groups of X variables (as defined by x_block)
+        in the corresponding weights vector for each component.
+
     y_block : array, [l_groups]
         An array that describes the groupings of Y variables. The entries 
         correspond to the starting index of each Y group.
         If None, all Y variables form a single group.
-        
-    x_groups : array, [n_components]
-        The number of non-zero groups of X variables (as defined by x_block)
-        in the corresponding weights vector for each component.
-    
+
     y_groups : array, [n_components], (default None)
         The number of non-zero groups of Y variables (as defined by y_block)
         in the corresponding weights vector for each component.
         If None, no Y groups are penalised.
         
-    scale : boolean, (default True)
-        whether to scale the data
-        
-    max_iter : an integer, (default 500)
-        the maximum number of iterations of the NIPALS inner loop (used
-        only if algorithm="nipals")
+    scale : boolean, scale data, (default True)
+    
+    deflation_mode : str, "canonical" or "regression". See notes.
+              
+    max_iter : int, (default 500)
+        The maximum number of iterations of inner loop
         
     tol : non-negative real, (default 1e-06)
         Tolerance used in the iterative algorithm.
@@ -345,8 +341,7 @@ class gPLSCanonical(_gPLS):
         The coefficients of the linear model: ``Y = X coef_ + Err``
         
     n_iter_ : array-like
-        Number of iterations of the NIPALS inner loop for each
-        component.
+        Number of iterations of the inner loop for each component.
         
     Notes
     -----
@@ -391,12 +386,11 @@ class gPLSCanonical(_gPLS):
     1 January 2016, Pages 35–42, https://doi.org/10.1093/bioinformatics/btv535
     """
 
-    def __init__(self, n_components=2, x_block, y_block=None,
-                 x_groups, y_groups=None, scale=True,
-                 max_iter=500, tol=1e-06, copy=True):
+    def __init__(self, x_block, x_groups, y_block=None, y_groups=None,
+                 n_components=2, scale=True, max_iter=500, tol=1e-06,
+                 copy=True):
         super().__init__(
-            n_components=n_components, x_block, y_block=None,
-            x_groups, y_groups=None, scale=scale,
-            deflation_mode="canonical", mode="A",
-            algorithm=None, norm_y_weights=False, max_iter=max_iter,
-            tol=tol, copy=copy)
+            x_block, x_groups, y_block=None, y_groups=None,
+            n_components=n_components, scale=scale,
+            deflation_mode="canonical", norm_y_weights=False,
+            max_iter=max_iter, tol=tol, copy=copy)
