@@ -528,12 +528,12 @@ def pls_blocks(array, max_entry, min_entry=0):
         # Remove 0 and/or max_entry
         if array_converted[0] == 0:
             array_converted = array_converted[1:]
-            warnings.warn("'%d' index removed from blocking array" %
-                          0)
+            message = "'%d' index removed from blocking array" % 0
+            warnings.warn(message)
         
         if array_converted[-1] == max_entry:
             array_converted = array_converted[:-1]
-            warnings.warn("'%d' index removed from blocking array" %
-                          max_entry)
+            message = "'%d' index removed from blocking array" % max_entry
+            warnings.warn(message)
             
         return array_converted

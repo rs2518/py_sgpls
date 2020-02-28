@@ -161,24 +161,21 @@ def test_pls_array():
     
     
 def test_pls_blocks():
-    #### BUG: Warning message not correct.
-    # FIX with (pseudocode):
-    # if array[0] == 0:
-    #     array = array[1:]
-    #     message = "'%d' index removed from blocking array" % 0
-    #     warnings.warn(message)
-    #
-    #
-    
     a = np.array([0, 3, 5, 8, 9, 15])
     b = np.array([3, 5, 8, 9, 15])
     c = np.array([0, 3, 5, 8, 9])
     
     true_block = np.array([3, 5, 8, 9])
     
+    # Check result
     np.testing.assert_array_equal(
         pls_blocks(a, max_entry=15, min_entry=0), true_block)
     np.testing.assert_array_equal(
         pls_blocks(b, max_entry=15, min_entry=0), true_block)
     np.testing.assert_array_equal(
         pls_blocks(c, max_entry=15, min_entry=0), true_block)
+    
+    # Check that UserWarning is raised
+    np.testing.assert_warns(UserWarning, pls_blocks, a, 15)
+    np.testing.assert_warns(UserWarning, pls_blocks, b, 15)
+    np.testing.assert_warns(UserWarning, pls_blocks, c, 15)
