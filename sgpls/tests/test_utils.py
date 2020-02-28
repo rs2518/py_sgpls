@@ -35,7 +35,7 @@ def test_sparsity_conversion():
     sc = sparsity_conversion(a, 3)
     
     np.testing.assert_array_equal(sc, np.array([3, 2, 1, 0, -1, -2, -3]))
-
+    
     # Test None case
     b = None
     sc2 = sparsity_conversion(b, 5)
@@ -54,7 +54,7 @@ def test_soft_thresholding():
     
 def test_group_thresholding():
     array = np.array([0, -5, 6, -9, 4, 7, 2])
-
+    
     # Case 1: lambda_k/penalty <= 1. Array is not penalised
     gt = _group_thresholding(array, 1, 2)    # lambda_k/penalty = 0.5 <= 1
     
@@ -116,35 +116,47 @@ def test_validate_block():
     a = np.array([0, 3, 5, 8, 9])
     np.testing.assert_array_equal(a, _validate_block(a))
     
-    # Swap first and last entry and repeat second entry.
-    # Check that ValueError is raised
-    b = np.array([9, 3, 3, 5, 8, 0])
+    # Check that unordered arrays and arrays with repeated entries raise
+    # ValueError
+    b = np.array([9, 3, 5, 8, 0])   # Swap first and last entry
+    c = np.array([0, 3, 3, 5, 8, 9])    # Repeat second entry
     np.testing.assert_raises(ValueError, _validate_block, b)
+    np.testing.assert_raises(ValueError, _validate_block, c)
     
     
 def test_pls_array():
-    #### BUG: None not handled correctly. Reorder arguments in docstrings
-    #
-    #
+    # Case 1: valid array, min_length < max_length
     a = np.array([2, 4, 0, 3, 1, 5])
     np.testing.assert_array_equal(a,
                                   pls_array(a, max_length=6, min_length=0,
                                             max_entry=5, min_entry=0))
-    # min_length <= max_length
+    
+    # Case 2: valid array, min_length = max_length
     np.testing.assert_array_equal(a,
                                   pls_array(a, max_length=6, min_length=6,
                                             max_entry=5, min_entry=0))
     
-    b = np.array([-2, 4, 0, 3, 1, 5])   # b[0] < min_entry (= 0)
+    # Case 3: valid array, None case
+    ##### BUG: Other arguments are redundant but must be defined.
+    # Consider recoding function
+    np.testing.assert_array_equal(None,
+                                  pls_array(None, max_length=6, min_length=6,
+                                            max_entry=5, min_entry=0))
+    
+    # Case 4: entries < min_entry. Raises ValueError
+    b = np.array([-2, 4, 0, 3, 1, 5])
     np.testing.assert_raises(ValueError, pls_array, b, 6, 0, 5, 0)
     
-    c = np.array([100, 4, 0, 3, 1, 5])  # c[0] > max_entry (= 5)
+    # Case 5: entries > max_entry. Raises ValueError
+    c = np.array([100, 4, 0, 3, 1, 5])
     np.testing.assert_raises(ValueError, pls_array, c, 6, 0, 5, 0)
     
-    d = np.array([2, 4])    # len(d) < min_length (= 3)
+    # Case 6: length < min_length. Raises ValueError
+    d = np.array([2, 4])
     np.testing.assert_raises(ValueError, pls_array, d, 6, 3, 5, 0)
     
-    e = np.array([2, 4, 0, 3, 1, 5, 4, 3, 2])   # len(e) > max_length (= 6)
+    # Case 7: length > max_length. Raises ValueError
+    e = np.array([2, 4, 0, 3, 1, 5, 4, 3, 2])
     np.testing.assert_raises(ValueError, pls_array, e, 6, 3, 5, 0)
     
     

@@ -31,7 +31,7 @@ def sparsity_conversion(array, n):
     variables/groups of variables to be penalised.
     None is converted into vector of zeros for no penalisation.
     """
-    if array == None:
+    if array is None:
         return np.zeros(n)
     else:
         return n - array
@@ -434,29 +434,29 @@ def pls_array(array, max_length, min_length, max_entry, min_entry=0):
     ----------
     array : array
         Input to be validated.
-    
-    min_length : int
-        Minimum length that the input array can be (must be greater than 0).
-    
+        
     max_length : int
         Maximum length that the input array can be.
-    
-    min_entry : int
-        Minimum value of the entries allowed in the input array (default = 0).
-        This corresponds with the minimum number of features that can be 
-        possibly selected from the data matrices.
+        
+    min_length : int
+        Minimum length that the input array can be (must be greater than 0).
         
     max_entry : int
         Maximum value of the entries allowed in the input array.
         This corresponds with the maximum number of features that can be 
         possibly selected from the data matrices.
         
+    min_entry : int (default = 0)
+        Minimum value of the entries allowed in the input array.
+        This corresponds with the minimum number of features that can be 
+        possibly selected from the data matrices.
+        
     Returns
     -------
     array_converted : array
-        Validated array. ValueError returned if array is invalid.
+        Validated array. ValueError raised if array is invalid.
     """
-    if array == None:
+    if array is None:
         return None
     
     else:
@@ -497,24 +497,24 @@ def pls_blocks(array, max_entry, min_entry=0):
     ----------
     array : array
         Input to be validated.
-    
-    min_entry : int
-        Minimum value of the entries allowed in the input array (default = 0).
-        This corresponds with the minimum number of features that can be 
-        possibly selected from the data matrices.
         
     max_entry : int
         Maximum value of the entries allowed in the input array.
         This corresponds with the maximum number of features that can be 
         possibly selected from the data matrices.
         
+    min_entry : int (default = 0)
+        Minimum value of the entries allowed in the input array (default = 0).
+        This corresponds with the minimum number of features that can be 
+        possibly selected from the data matrices.
+        
     Returns
     -------
     array_converted : array
-        Validated array. ValueError returned if array is invalid.
+        Validated array. ValueError raised if array is invalid.
         Length of array must be between 1 and max_entry.
     """
-    if array == None:
+    if array is None:
         return None
     
     else:
