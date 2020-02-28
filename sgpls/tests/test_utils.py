@@ -92,23 +92,24 @@ def test_sparse_group_thresholding():
 ####
     
     
-def test_check_1d():
-    #### BUG: _check_1d reads shape (n, 1) and (1, n) as 2-dimensional.
-    # FIX with (pseudocode):
-    # if ndim > 2:
-    #     error
-    # elif ndim == 2 and 1 not in array.shape:
-    #     error
-    # else:
-    #     array = array.ravel    # ravel uses less memory than flatten
-    #
-    #
-    one_d_array = np.zeros(5)
-    np.testing.assert_array_equal(one_d_array, _check_1d(one_d_array))
+def test_check_1d():    
+    # Check that multi-dimensional arrays with n.dim > 2 raise ValueErrors
+    multi_d = np.zeros((5, 4, 3))
+    np.testing.assert_raises(ValueError, _check_1d, multi_d)
     
-    # Check that multi-dimensional arrays return ValueErrors
-    two_d_array = np.zeros((5, 2))
-    np.testing.assert_raises(ValueError, _check_1d, two_d_array)
+    # Check that 2D arrays raise ValueErrors
+    two_d = np.zeros((5, 4))
+    np.testing.assert_raises(ValueError, _check_1d, two_d)
+    
+    # Test 1D arrays
+    one_d_a = np.zeros(5)
+    np.testing.assert_array_equal(one_d_a, _check_1d(one_d_a))
+    
+    # Check that 2D arrays with shapes (n,1) or (1,n) are converted to 1D
+    one_d_b = np.zeros((5, 1))
+    one_d_c = np.zeros((1, 5))
+    np.testing.assert_array_equal(one_d_a, _check_1d(one_d_b))
+    np.testing.assert_array_equal(one_d_a, _check_1d(one_d_c))
     
     
 def test_validate_block():
