@@ -111,6 +111,9 @@ def test_check_1d():
     np.testing.assert_array_equal(one_d_a, _check_1d(one_d_b))
     np.testing.assert_array_equal(one_d_a, _check_1d(one_d_c))
     
+    # Check None case
+    np.testing.assert_array_equal(None, _check_1d(None))
+    
     
 def test_validate_block():
     a = np.array([0, 3, 5, 8, 9])

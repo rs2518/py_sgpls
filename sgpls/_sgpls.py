@@ -1,5 +1,6 @@
 import numpy as np
 from ._gpls import _gPLS
+from .utils import _check_1d
 
 
 __all__ = ['sgPLSCanonical', 'sgPLSRegression']
@@ -148,8 +149,8 @@ class _sgPLS(_gPLS):
         super().__init__(x_block, x_groups, y_block, y_groups,
                          n_components, scale, deflation_mode,
                          norm_y_weights, max_iter, tol, copy)
-        self.alpha_x = alpha_x
-        self.alpha_y = alpha_y
+        self.alpha_x = _check_1d(alpha_x)
+        self.alpha_y = _check_1d(alpha_y)
         self.lambda_tol = lambda_tol
         self.max_lambda = max_lambda
         self.lambda_niter = lambda_niter

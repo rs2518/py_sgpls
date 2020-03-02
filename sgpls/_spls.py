@@ -1,4 +1,5 @@
 from ._pls import _PLS
+from .utils import _check_1d
 
 
 __all__ = ['sPLSCanonical', 'sPLSRegression']
@@ -105,8 +106,8 @@ class _sPLS(_PLS):
                  max_iter=500, tol=1e-06, copy=True):
         super().__init__(n_components, scale, deflation_mode, norm_y_weights,
                          max_iter, tol, copy, algorithm=None, mode="A")
-        self.x_vars = x_vars
-        self.y_vars = y_vars
+        self.x_vars = _check_1d(x_vars)
+        self.y_vars = _check_1d(y_vars)
 
 
 class sPLSRegression(_sPLS):

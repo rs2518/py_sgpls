@@ -376,29 +376,33 @@ def _sgpls_inner_loop(X, Y, x_group, y_group, x_ind, y_ind,
 
 
 def _check_1d(array):
-    """Check if input is a non-empty 1D array
+    """Check if input is a non-empty 1D array. Returns None if array is None
     
     Uses scikit-learn check_array for input validation. (See scikit_learn
     API reference for more information)
     
     NOTE: Empty numpy arrays are still 1D arrays but have a length of 0
     """
-    # Input validation
-    array_converted = check_array(array, ensure_2d=False)
+    if array is None:
+        pass
     
-    # Check if 1D
-    if array_converted.ndim not in (1, 2) :
-        raise ValueError("Shape of array is invalid: \n %s.\n"
-                         "Array must be 1-dimensional"
-                         % array_converted)
-    elif array_converted.ndim == 2 and 1 not in array_converted.shape:
-        raise ValueError("Shape of array is invalid: \n %s.\n"
-                         "Array must be 1-dimensional"
-                         % array_converted)
+    # Input validation
     else:
-        array_converted = array_converted.flatten()
+        array_converted = check_array(array, ensure_2d=False)
         
-    return array_converted
+        # Check if 1D
+        if array_converted.ndim not in (1, 2):
+            raise ValueError("Shape of array is invalid: \n %s.\n"
+                             "Array must be 1-dimensional"
+                             % array_converted)
+        elif array_converted.ndim == 2 and 1 not in array_converted.shape:
+            raise ValueError("Shape of array is invalid: \n %s.\n"
+                             "Array must be 1-dimensional"
+                             % array_converted)
+        else:
+            array_converted = array_converted.flatten() 
+        
+        return array_converted
 
 
 def _validate_block(array):

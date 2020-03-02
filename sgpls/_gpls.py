@@ -1,4 +1,5 @@
 from ._pls import _PLS
+from .utils import _check_1d
 
 
 __all__ = ['gPLSCanonical', 'gPLSRegression']
@@ -132,10 +133,10 @@ class _gPLS(_PLS):
                  norm_y_weights=False, max_iter=500, tol=1e-06, copy=True):
         super().__init__(n_components, scale, deflation_mode, norm_y_weights,
                          max_iter, tol, copy, algorithm=None, mode="A")
-        self.x_block = x_block
-        self.y_block = y_block
-        self.x_groups = x_groups
-        self.y_groups = y_groups
+        self.x_block = _check_1d(x_block)
+        self.y_block = _check_1d(y_block)
+        self.x_groups = _check_1d(x_groups)
+        self.y_groups = _check_1d(y_groups)
         
         
 class gPLSRegression(_gPLS):
