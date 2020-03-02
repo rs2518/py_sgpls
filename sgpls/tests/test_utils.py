@@ -137,11 +137,7 @@ def test_pls_array():
                                             max_entry=5, min_entry=0))
     
     # Case 3: valid array, None case
-    ##### BUG: Other arguments are redundant but must be defined.
-    # Consider recoding function
-    np.testing.assert_array_equal(None,
-                                  pls_array(None, max_length=6, min_length=6,
-                                            max_entry=5, min_entry=0))
+    np.testing.assert_array_equal(None, pls_array(None))
     
     # Case 4: entries < min_entry. Raises ValueError
     b = np.array([-2, 4, 0, 3, 1, 5])

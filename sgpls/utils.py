@@ -422,7 +422,7 @@ def _validate_block(array):
     return array
 
 
-def pls_array(array, max_length, min_length, max_entry, min_entry=0):
+def pls_array(array, min_length=1, max_length=None, min_entry=0, max_entry=None):
     """Validates input arguments for sparse extensions of PLS.
     
     Combination of _check_1d plus additional checks.
@@ -435,21 +435,24 @@ def pls_array(array, max_length, min_length, max_entry, min_entry=0):
     array : array
         Input to be validated.
         
-    max_length : int
-        Maximum length that the input array can be.
+    min_length : int (default = 1)
+        Minimum length that the input array can be. Setting to None disables check.
         
-    min_length : int
-        Minimum length that the input array can be (must be greater than 0).
-        
-    max_entry : int
-        Maximum value of the entries allowed in the input array.
-        This corresponds with the maximum number of features that can be 
-        possibly selected from the data matrices.
-        
+    max_length : int (default = None)
+        Maximum length that the input array can be. Setting to None disables
+        check.
+                
     min_entry : int (default = 0)
         Minimum value of the entries allowed in the input array.
         This corresponds with the minimum number of features that can be 
-        possibly selected from the data matrices.
+        possibly selected from the data matrices. Setting to None disables
+        check.
+        
+    max_entry : int (default = None)
+        Maximum value of the entries allowed in the input array.
+        This corresponds with the maximum number of features that can be 
+        possibly selected from the data matrices. Setting to None disables
+        check.
         
     Returns
     -------
@@ -457,33 +460,33 @@ def pls_array(array, max_length, min_length, max_entry, min_entry=0):
         Validated array. ValueError raised if array is invalid.
     """
     if array is None:
-        return None
+        pass
     
     else:
-        # Validate array
-        array_converted = _check_1d(array)
-        
         # Check that length of array is between minimum and maximum length
-        if len(array_converted) < min_length:
+        if min_length is not None and len(array) < min_length:
             raise ValueError("Length of array is invalid: \n %s.\n" 
                              "Length is %d but minimum length is %d"
-                             % (array_converted, len(array_converted),
+                             % (array, len(array),
                                 min_length))
-        if len(array_converted) > max_length:
+        if max_length is not None and len(array) > max_length:
             raise ValueError("Length of array is invalid: \n %s.\n" 
                              "Length is %d but maximum length is %d"
-                             % (array_converted, len(array_converted),
+                             % (array, len(array),
                                 max_length))
         
         # Check that all entries are between minimum and maximum value
-        if any((array_converted < min_entry) |
-               (array_converted > max_entry)):
-            raise ValueError("Invalid entry in array: \n %s.\n" 
-                             "All entries must be between %d and %d"
-                             % (array_converted, min_entry,
-                                max_entry))
+        if min_entry is not None and any(array < min_entry):
+            raise ValueError("Invalid entry in array: \n %s.\n"
+                             "Entries cannot be < %d"
+                             % (array, min_entry))
+        
+        if max_entry is not None and any(array > max_entry):
+            raise ValueError("Invalid entry in array: \n %s.\n"
+                             "Entries cannot be > %d"
+                             % (array, max_entry))    
             
-        return array_converted
+        return array
 
 
 def pls_blocks(array, max_entry, min_entry=0):
