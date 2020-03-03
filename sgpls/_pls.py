@@ -177,12 +177,12 @@ class _PLS(TransformerMixin, RegressorMixin, MultiOutputMixin, BaseEstimator,
         if self.model == "spls":
             self.x_vars = pls_array(
                     array=self.x_vars, min_length=self.n_components,
-                    max_length=self.n_components, min_features=0,
-                    max_features=p)                
+                    max_length=self.n_components, min_entry=0,
+                    max_entry=p)                
             self.y_vars = pls_array(
                     array=self.y_vars, min_length=self.n_components,
-                    max_length=self.n_components, min_features=0,
-                    max_features=q)
+                    max_length=self.n_components, min_entry=0,
+                    max_entry=q)
             
             x_sparsity = sparsity_conversion(self.x_vars, p)
             y_sparsity = sparsity_conversion(self.y_vars, q)
@@ -196,12 +196,12 @@ class _PLS(TransformerMixin, RegressorMixin, MultiOutputMixin, BaseEstimator,
             
             self.x_groups = pls_array(
                     array=self.x_groups, min_length=self.n_components,
-                    max_length=self.n_components, min_features=0,
-                    max_features=k)
+                    max_length=self.n_components, min_entry=0,
+                    max_entry=k)
             self.y_groups = pls_array(
                     array=self.y_groups, min_length=self.n_components,
-                    max_length=self.n_components, min_features=0,
-                    max_features=l)
+                    max_length=self.n_components, min_entry=0,
+                    max_entry=l)
             
             x_ind = np.insert(self.x_block, (0, k-1), (0, p))
             y_ind = np.insert(self.y_block, (0, l-1), (0, q))
@@ -212,12 +212,12 @@ class _PLS(TransformerMixin, RegressorMixin, MultiOutputMixin, BaseEstimator,
         if self.model == "sgpls":
             self.alpha_x = pls_array(
                     array=self.alpha_x, min_length=self.n_components,
-                    max_length=self.n_components, min_features=0,
-                    max_features=1)
+                    max_length=self.n_components, min_entry=0,
+                    max_entry=1)
             self.alpha_y = pls_array(
                     array=self.alpha_y, min_length=self.n_components,
-                    max_length=self.n_components, min_features=0,
-                    max_features=1)
+                    max_length=self.n_components, min_entry=0,
+                    max_entry=1)
 
         if self.n_components < 1 or self.n_components > p:
             raise ValueError('Invalid number of components: %d' %
