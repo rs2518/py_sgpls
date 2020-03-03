@@ -165,16 +165,29 @@ def test_pls_blocks():
     c = np.array([0, 3, 5, 8, 9])
     
     true_block = np.array([3, 5, 8, 9])
+    true_ind = np.array([0, 3, 5, 8, 9, 15])
     
-    # Check result
-    np.testing.assert_array_equal(
-        pls_blocks(a, max_entry=15, min_entry=0), true_block)
-    np.testing.assert_array_equal(
-        pls_blocks(b, max_entry=15, min_entry=0), true_block)
-    np.testing.assert_array_equal(
-        pls_blocks(c, max_entry=15, min_entry=0), true_block)
+    # Check results
+    block_orig, ind_orig = pls_blocks(true_block, max_entry=15)
+    block_a, ind_a = pls_blocks(a, max_entry=15)
+    block_b, ind_b = pls_blocks(b, max_entry=15)
+    block_c, ind_c = pls_blocks(c, max_entry=15)
+    
+    np.testing.assert_array_equal(block_a, true_block)
+    np.testing.assert_array_equal(block_b, true_block)    
+    np.testing.assert_array_equal(block_c, true_block)
+    np.testing.assert_array_equal(ind_a, true_ind)
+    np.testing.assert_array_equal(ind_b, true_ind)
+    np.testing.assert_array_equal(ind_c, true_ind)
     
     # Check that UserWarning is raised
-    np.testing.assert_warns(UserWarning, pls_blocks, a, 15)
-    np.testing.assert_warns(UserWarning, pls_blocks, b, 15)
-    np.testing.assert_warns(UserWarning, pls_blocks, c, 15)
+    np.testing.assert_warns(UserWarning, pls_blocks, a, 15, 0, True)
+    np.testing.assert_warns(UserWarning, pls_blocks, b, 15, 0, True)
+    np.testing.assert_warns(UserWarning, pls_blocks, c, 15, 0, True)
+    
+    # Test None
+    true_ind_none = np.array([0, 15])
+    block_none, ind_none = pls_blocks(None, max_entry=15)
+    
+    np.testing.assert_array_equal(block_none, None)
+    np.testing.assert_array_equal(ind_none, true_ind_none)
