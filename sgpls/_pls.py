@@ -12,7 +12,7 @@ from sklearn.utils.validation import check_is_fitted, FLOAT_DTYPES
 from sklearn.cross_decomposition.pls_ import _center_scale_xy
 
 from .utils import svd_cross_product, sparsity_conversion
-from .utils import _nipals_twoblocks_inner_loop, _spls_inner_loop
+from .utils import _pls_inner_loop, _spls_inner_loop
 from .utils import _gpls_inner_loop, _sgpls_inner_loop
 from .utils import pls_blocks, pls_array
 
@@ -242,10 +242,11 @@ class _PLS(TransformerMixin, RegressorMixin, MultiOutputMixin, BaseEstimator,
         self.x_loadings_ = np.zeros((p, self.n_components))
         self.y_loadings_ = np.zeros((q, self.n_components))
         self.n_iter_ = []
-
-        # Outer loop, over components
-        if self.model == "pls":
-            Y_eps = np.finfo(Yk.dtype).eps
+        
+        # Threshold for values in Y which are zeroed out in NIPALS algorithm
+        Y_eps = np.finfo(Yk.dtype).eps
+        
+        # Outer loop, over components            
         for k in range(self.n_components):
             if np.all(np.dot(Yk.T, Yk) < np.finfo(np.double).eps):
                 # Yk constant
@@ -254,18 +255,17 @@ class _PLS(TransformerMixin, RegressorMixin, MultiOutputMixin, BaseEstimator,
             # 1) weights estimation (inner loop)
             # -----------------------------------
             if self.model == "pls":
-                if self.algorithm == "nipals":
-                    # Replace columns that are all close to zero with zeros
-                    Yk_mask = np.all(np.abs(Yk) < 10 * Y_eps, axis=0)
-                    Yk[:, Yk_mask] = 0.0
-            
-                    x_weights, y_weights, n_iter_ = \
-                        _nipals_twoblocks_inner_loop(
-                            X=Xk, Y=Yk, mode=self.mode, max_iter=self.max_iter,
-                            tol=self.tol, norm_y_weights=self.norm_y_weights)
-                elif self.algorithm == "svd":
-                    x_weights, y_weights = svd_cross_product(
-                            X=Xk, Y=Yk, return_matrix=False)
+                weights = \
+                    _pls_inner_loop(X=Xk, Y=Yk, algorithm=self.algorithm,
+                                    mode=self.mode, max_iter=self.max_iter,
+                                    tol=self.tol,
+                                    norm_y_weights=self.norm_y_weights,
+                                    y_eps=Y_eps)
+                try:
+                    x_weights, y_weights, n_iter = weights
+                except ValueError:
+                    x_weights, y_weights = weights
+                                    
             if self.model == "spls":
                 x_weights, y_weights, n_iter = \
                     _spls_inner_loop(
