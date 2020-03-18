@@ -16,7 +16,7 @@ import numpy as np
 from sgpls.utils import sparsity_conversion
 from sgpls.utils import _soft_thresholding
 from sgpls.utils import _group_thresholding
-# from sgpls.utils import _lambda_quadratic
+from sgpls.utils import _lambda_quadratic
 from sgpls.utils import _sparse_group_thresholding
 # from sgpls.utils import _nipals_twoblocks_inner_loop
 # from sgpls.utils import _spls_inner_loop
@@ -68,10 +68,17 @@ def test_group_thresholding():
     np.testing.assert_array_equal(gt2, np.zeros(len(array)))
     
     
-####
-## NOTE: Compare with respective R functions 
-# def test_lambda_quadratic():
-####
+def test_lambda_quadratic():
+    array = np.array([-0.3, 0.8, 0.9, 1.0, 0.4])
+    lambdas = np.linspace(0,5,11)
+    lq = np.array([_lambda_quadratic(array, lam, 1/2) for lam in lambdas])
+    
+    # Compare to lambda.quadra() from sgPLS package internal functions
+    true_lq = np.array([2.700000, 1.615625, 0.062500, -1.965000,
+                        -4.500000, -7.565625, -11.162500, -15.296250,
+                        -20.000000, -25.312500, -31.250000])
+    
+    np.testing.assert_array_almost_equal(lq, true_lq, decimal=6)
     
     
 def test_sparse_group_thresholding():
@@ -81,15 +88,6 @@ def test_sparse_group_thresholding():
     true_sgt = np.array([-0.9, 0, 0.3, 0])
     
     np.testing.assert_array_almost_equal(sgt, true_sgt, decimal=6)
-    
-    
-####
-## NOTE: Compare with respective R functions
-# def test_nipals_twoblocks_inner_loop(): (nipals test not necessary)
-# def test_spls_inner_loop():
-# def test_gpls_inner_loop():
-# def test_sgpls_inner_loop():
-####
     
     
 def test_check_1d():    
@@ -191,3 +189,12 @@ def test_pls_blocks():
     
     np.testing.assert_array_equal(block_none, None)
     np.testing.assert_array_equal(ind_none, true_ind_none)
+    
+    
+####
+## NOTE: Compare with respective R functions
+# def test_nipals_twoblocks_inner_loop():    # nipals test not necessary
+# def test_spls_inner_loop():
+# def test_gpls_inner_loop():
+# def test_sgpls_inner_loop():
+####

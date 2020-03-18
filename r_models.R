@@ -60,6 +60,15 @@ alpha.x <- alpha.y <- c(0.95, 0.95)    # sgPLS sparsity mixin
 #############################################################################################
 # sgPLS package - Compare results
 #############################################################################################
+# #### Compare to _lambda_quadratic
+# set.seed(101096)
+# vec <- round(runif(5, -10, 10))/10
+# alpha <- 1/2
+# lambda.space <- seq(0, 5, by=0.5)
+# lq <- NULL
+# for (i in 1:length(lambda.space)){
+#   lq <- c(lq, lambda.quadra(lambda.space[i], vec, alpha))}
+
 #### sPLS model
 sgPLS_spls <- sPLS(X, Y, ncomp = ncomp, mode = "regression", keepX = keepX, keepY = keepY)
 
