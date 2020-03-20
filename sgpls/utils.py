@@ -4,6 +4,7 @@ import numpy as np
 from scipy.linalg import svd, pinv2
 from scipy.optimize import brentq
 
+from sklearn.cross_decomposition._pls import _nipals_twoblocks_inner_loop
 from sklearn.utils import check_array
 from sklearn.exceptions import ConvergenceWarning
 
@@ -53,7 +54,7 @@ def _group_thresholding(y, lambda_k, penalty):
     user). Derived from the group LASSO penalisation of the objective function.    
     """
     return np.array(y) * np.clip(1 - (lambda_k / penalty),
-                    a_min = 0, a_max = None)
+                                 a_min = 0, a_max = None)
 
 
 def _lambda_quadratic(y, lambda_k, alpha):
@@ -83,73 +84,36 @@ def _sparse_group_thresholding(y, lambda_k, penalty, alpha):
         return c/2 * g
 
 
-def _nipals_twoblocks_inner_loop(X, Y, mode="A", max_iter=500, tol=1e-06,
-                                 norm_y_weights=False):
-    """Inner loop of the iterative NIPALS algorithm.
+def _pls_inner_loop(X, Y, y_eps, algorithm="nipals", mode="A", max_iter=500,
+                    tol=1e-06, norm_y_weights=False):
+    """Inner loop for the tuning of the PLS algorithm.
     
-    Provides an alternative to the svd(X'Y); returns the first left and right
-    singular vectors of X'Y.  See PLS for the meaning of the parameters.  It is
-    similar to the Power method for determining the eigenvectors and
-    eigenvalues of a X'Y.
+    If algorithm = "nipals", the NIPALS implementation is used to estimate the
+    weights (See sklearn.cross_decomposition._pls for details).
+    If algorithm = "svd", the SVD implementation is used to estimate the
+    weights. SVD is not an iterative method and therefore does not return the
+    number of iterations.
     """
-    for col in Y.T:
-        if np.any(np.abs(col) > np.finfo(np.double).eps):
-            y_score = col.reshape(len(col), 1)
-            break
-
-    x_weights_old = 0
-    ite = 1
-    X_pinv = Y_pinv = None
-    eps = np.finfo(X.dtype).eps
-    # Inner loop of the Wold algo.
-    while True:
-        # 1.1 Update u: the X weights
-        if mode == "B":
-            if X_pinv is None:
-                # We use slower pinv2 (same as np.linalg.pinv) for stability
-                # reasons
-                X_pinv = pinv2(X, check_finite=False)
-            x_weights = np.dot(X_pinv, y_score)
-        else:  # mode A
-            # Mode A regress each X column on y_score
-            x_weights = np.dot(X.T, y_score) / np.dot(y_score.T, y_score)
-        # If y_score only has zeros x_weights will only have zeros. In
-        # this case add an epsilon to converge to a more acceptable
-        # solution
-        if np.dot(x_weights.T, x_weights) < eps:
-            x_weights += eps
-        # 1.2 Normalize u
-        x_weights /= np.sqrt(np.dot(x_weights.T, x_weights)) + eps
-        # 1.3 Update x_score: the X latent scores
-        x_score = np.dot(X, x_weights)
-        # 2.1 Update y_weights
-        if mode == "B":
-            if Y_pinv is None:
-                Y_pinv = pinv2(Y, check_finite=False)  # compute once pinv(Y)
-            y_weights = np.dot(Y_pinv, x_score)
-        else:
-            # Mode A regress each Y column on x_score
-            y_weights = np.dot(Y.T, x_score) / np.dot(x_score.T, x_score)
-        # 2.2 Normalize y_weights
-        if norm_y_weights:
-            y_weights /= np.sqrt(np.dot(y_weights.T, y_weights)) + eps
-        # 2.3 Update y_score: the Y latent scores
-        y_score = np.dot(Y, y_weights) / (np.dot(y_weights.T, y_weights) + eps)
-        # y_score = np.dot(Y, y_weights) / np.dot(y_score.T, y_score) ## BUG
-        x_weights_diff = x_weights - x_weights_old
-        if np.dot(x_weights_diff.T, x_weights_diff) < tol or Y.shape[1] == 1:
-            break
-        if ite == max_iter:
-            warnings.warn('Maximum number of iterations reached',
-                          ConvergenceWarning)
-            break
-        x_weights_old = x_weights
-        ite += 1
-    return x_weights, y_weights, ite
+    if algorithm == "nipals":
+        # Replace columns that are all close to zero with zeros
+        Y_mask = np.all(np.abs(Y) < 10 * y_eps, axis=0)
+        Y[:, Y_mask] = 0.0
+        # NIPALS algorithm
+        u, v, ite = \
+            _nipals_twoblocks_inner_loop(X=X, Y=Y, y_eps=y_eps,
+                                         algorithm=algorithm, mode=mode,
+                                         max_iter=max_iter, tol=tol,
+                                         norm_y_weights=norm_y_weights)
+        return u, v, ite
+    
+    elif algorithm == "svd":
+        # SVD algorithm (non-iterative method)
+        u, v = svd_cross_product(X=X, Y=Y, return_matrix=False)
+        return u, v
 
 
 def _spls_inner_loop(X, Y, x_var, y_var, max_iter=500, tol=1e-06,
-                    norm_y_weights=True):
+                     norm_y_weights=True):
     """Inner loop for iterative tuning of sPLS algorithm.
     
     Estimates PLS weights which solve the sparse PLS objective function.
@@ -202,7 +166,7 @@ def _spls_inner_loop(X, Y, x_var, y_var, max_iter=500, tol=1e-06,
 
 
 def _gpls_inner_loop(X, Y, x_group, y_group, x_ind, y_ind,
-                       max_iter=500, tol=1e-06, norm_y_weights=True):
+                     max_iter=500, tol=1e-06, norm_y_weights=True):
     """Inner loop for iterative tuning of gPLS algorithm.
     
     Estimates PLS weights which solve the group PLS objective function.
@@ -281,10 +245,10 @@ def _gpls_inner_loop(X, Y, x_group, y_group, x_ind, y_ind,
 
 
 def _sgpls_inner_loop(X, Y, x_group, y_group, x_ind, y_ind,
-                     alpha_x, alpha_y, max_iter=500,
-                     tol=1e-06, norm_y_weights=True,
-                     lambda_tol=np.finfo(float).eps**0.25,
-                     max_lambda=1e+05, lambda_niter=1000):
+                      alpha_x, alpha_y, max_iter=500,
+                      tol=1e-06, norm_y_weights=True,
+                      lambda_tol=np.finfo(float).eps**0.25,
+                      max_lambda=1e+05, lambda_niter=1000):
     """Inner loop for iterative tuning of sgPLS algorithm.
     
     Estimates PLS weights which solve the sparse group PLS objective function.
