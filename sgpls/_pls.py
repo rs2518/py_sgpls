@@ -11,7 +11,7 @@ from sklearn.utils.extmath import svd_flip
 from sklearn.utils.validation import check_is_fitted, FLOAT_DTYPES
 from sklearn.cross_decomposition.pls_ import _center_scale_xy
 
-from .utils import svd_cross_product, sparsity_conversion
+from .utils import sparsity_conversion
 from .utils import _pls_inner_loop, _spls_inner_loop
 from .utils import _gpls_inner_loop, _sgpls_inner_loop
 from .utils import pls_blocks, pls_array
@@ -188,11 +188,8 @@ class _PLS(TransformerMixin, RegressorMixin, MultiOutputMixin, BaseEstimator,
                              "be implemented with %s. Set algorithm to 'NA'"
                              % (self.model, self.algorithm))
             
-        # Validate sparsity parameters (if any)
-        if self.model == "pls":
-            pass
-        
-        elif self.model == "spls":
+        # Validate sparsity parameters (if any)        
+        if self.model == "spls":
             self.x_vars = pls_array(
                     array=self.x_vars, min_length=self.n_components,
                     max_length=self.n_components, min_entry=0,
@@ -205,8 +202,8 @@ class _PLS(TransformerMixin, RegressorMixin, MultiOutputMixin, BaseEstimator,
             y_sparsity = sparsity_conversion(self.y_vars, q)
         
         elif self.model in ("gpls", "sgpls"):
-            self.x_block, x_ind = pls_blocks(self.x_block, 0, p)
-            self.y_block, y_ind = pls_blocks(self.y_block, 0, q)
+            self.x_block, x_ind = pls_blocks(self.x_block, p)
+            self.y_block, y_ind = pls_blocks(self.y_block, q)
             self.x_groups = pls_array(
                     array=self.x_groups, min_length=self.n_components,
                     max_length=self.n_components, min_entry=0,
@@ -244,7 +241,8 @@ class _PLS(TransformerMixin, RegressorMixin, MultiOutputMixin, BaseEstimator,
         self.n_iter_ = []
         
         # Threshold for values in Y which are zeroed out in NIPALS algorithm
-        Y_eps = np.finfo(Yk.dtype).eps
+        if self.model == "pls":
+            y_eps = np.finfo(Yk.dtype).eps
         
         # Outer loop, over components            
         for k in range(self.n_components):
@@ -255,25 +253,20 @@ class _PLS(TransformerMixin, RegressorMixin, MultiOutputMixin, BaseEstimator,
             # 1) weights estimation (inner loop)
             # -----------------------------------
             if self.model == "pls":
-                weights = \
-                    _pls_inner_loop(X=Xk, Y=Yk, algorithm=self.algorithm,
-                                    mode=self.mode, max_iter=self.max_iter,
-                                    tol=self.tol,
-                                    norm_y_weights=self.norm_y_weights,
-                                    y_eps=Y_eps)
-                try:
-                    x_weights, y_weights, n_iter = weights
-                except ValueError:
-                    x_weights, y_weights = weights
-                                    
-            if self.model == "spls":
+                x_weights, y_weights, n_iter = \
+                    _pls_inner_loop(
+                            X=Xk, Y=Yk, y_eps=y_eps,
+                            algorithm=self.algorithm,
+                            max_iter=self.max_iter, tol=self.tol,
+                            norm_y_weights=self.norm_y_weights)                                    
+            elif self.model == "spls":
                 x_weights, y_weights, n_iter = \
                     _spls_inner_loop(
                             X=Xk, Y=Yk,
                             x_var=x_sparsity[k], y_var=y_sparsity[k],
                             max_iter=self.max_iter, tol=self.tol,
                             norm_y_weights=self.norm_y_weights)
-            if self.model == "gpls":
+            elif self.model == "gpls":
                 x_weights, y_weights, n_iter = \
                     _gpls_inner_loop(
                             X=Xk, Y=Yk,
@@ -281,7 +274,7 @@ class _PLS(TransformerMixin, RegressorMixin, MultiOutputMixin, BaseEstimator,
                             x_ind=x_ind, y_ind=y_ind,
                             max_iter=self.max_iter, tol=self.tol,
                             norm_y_weights=self.norm_y_weights)
-            if self.model == "sgpls":
+            elif self.model == "sgpls":
                 x_weights, y_weights, n_iter = \
                     _sgpls_inner_loop(
                             X=Xk, Y=Yk,
@@ -292,11 +285,10 @@ class _PLS(TransformerMixin, RegressorMixin, MultiOutputMixin, BaseEstimator,
                             norm_y_weights=self.norm_y_weights,
                             lambda_tol=self.lambda_tol,
                             max_lambda=self.max_lambda,
-                            lambda_niter=self.lambda_niter)
-            try:
-                self.n_iter_.append(n_iter_)            
-            except NameError:
-                pass
+                            lambda_max_iter=self.lambda_max_iter)
+            
+            if n_iter is not None:
+                self.n_iter_.append(n_iter)            
             # Forces sign stability of x_weights and y_weights
             # Sign undeterminacy issue from svd if algorithm == "svd"
             # and from platform dependent computation if algorithm == 'nipals'

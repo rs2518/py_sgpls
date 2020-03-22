@@ -1,7 +1,7 @@
 import warnings
 
 import numpy as np
-from scipy.linalg import svd, pinv2
+from scipy.linalg import svd
 from scipy.optimize import brentq
 
 from sklearn.cross_decomposition._pls import _nipals_twoblocks_inner_loop
@@ -84,7 +84,7 @@ def _sparse_group_thresholding(y, lambda_k, penalty, alpha):
         return c/2 * g
 
 
-def _pls_inner_loop(X, Y, y_eps, algorithm="nipals", mode="A", max_iter=500,
+def _pls_inner_loop(X, Y, y_eps, algorithm="nipals", max_iter=500,
                     tol=1e-06, norm_y_weights=False):
     """Inner loop for the tuning of the PLS algorithm.
     
@@ -100,16 +100,16 @@ def _pls_inner_loop(X, Y, y_eps, algorithm="nipals", mode="A", max_iter=500,
         Y[:, Y_mask] = 0.0
         # NIPALS algorithm
         u, v, ite = \
-            _nipals_twoblocks_inner_loop(X=X, Y=Y, y_eps=y_eps,
-                                         algorithm=algorithm, mode=mode,
+            _nipals_twoblocks_inner_loop(X=X, Y=Y, mode="A",
                                          max_iter=max_iter, tol=tol,
                                          norm_y_weights=norm_y_weights)
-        return u, v, ite
     
     elif algorithm == "svd":
         # SVD algorithm (non-iterative method)
         u, v = svd_cross_product(X=X, Y=Y, return_matrix=False)
-        return u, v
+        ite = None
+    
+    return u, v, ite
 
 
 def _spls_inner_loop(X, Y, x_var, y_var, max_iter=500, tol=1e-06,
@@ -248,14 +248,14 @@ def _sgpls_inner_loop(X, Y, x_group, y_group, x_ind, y_ind,
                       alpha_x, alpha_y, max_iter=500,
                       tol=1e-06, norm_y_weights=True,
                       lambda_tol=np.finfo(float).eps**0.25,
-                      max_lambda=1e+05, lambda_niter=1000):
+                      max_lambda=1e+05, lambda_max_iter=1000):
     """Inner loop for iterative tuning of sgPLS algorithm.
     
     Estimates PLS weights which solve the sparse group PLS objective function.
     See Benoît Liquet et al (2015) for details.  
     Lambda thresholds are solved numerically with scipy.optimize.brentq.
     Method searches values of lambda between 0 and max_lambda (default 1e+05)
-    within the maximum number of iterations, lambda_niter (default 1000).
+    within the maximum number of iterations, lambda_max_iter (default 1000).
     """
     u_old, v_old, M = svd_cross_product(X, Y, return_matrix=True)
     ite = 1
@@ -281,7 +281,7 @@ def _sgpls_inner_loop(X, Y, x_group, y_group, x_ind, y_ind,
                     a=0, b=max_lambda,
                     args=(arr, alpha_x),
                     xtol=lambda_tol,
-                    maxiter=lambda_niter)
+                    maxiter=lambda_max_iter)
         # 1.3 Find lambda_x : the X penalty
         if x_group == 0:
             lambda_x = sorted(np.absolute(x_penalty))[0] - 1
@@ -309,7 +309,7 @@ def _sgpls_inner_loop(X, Y, x_group, y_group, x_ind, y_ind,
                     a=0, b=max_lambda,
                     args=(arr, alpha_y),
                     xtol=lambda_tol,
-                    maxiter=lambda_niter)
+                    maxiter=lambda_max_iter)
         # 2.3 Find lambda_y : the Y penalty
         if y_group == 0:
             lambda_y = sorted(np.absolute(y_penalty))[0] - 1
