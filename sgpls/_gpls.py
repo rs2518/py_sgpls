@@ -131,8 +131,10 @@ class _gPLS(_PLS):
     def __init__(self, x_block, x_groups, y_block=None, y_groups=None,
                  n_components=2, scale=True, deflation_mode="regression",
                  norm_y_weights=False, max_iter=500, tol=1e-06, copy=True):
-        super().__init__(n_components, scale, deflation_mode, norm_y_weights,
-                         max_iter, tol, copy, algorithm=None, mode="A")
+        super().__init__(n_components=n_components, scale=scale,
+                         deflation_mode=deflation_mode, algorithm="NA",
+                         norm_y_weights=norm_y_weights,
+                         max_iter=max_iter, tol=tol, copy=copy)        
         self.x_block = _check_1d(x_block)
         self.y_block = _check_1d(y_block)
         self.x_groups = _check_1d(x_groups)
@@ -142,9 +144,8 @@ class _gPLS(_PLS):
 class gPLSRegression(_gPLS):
     """gPLS regression
     
-    gPLSRegression inherits from _gPLS with deflation_mode="regression" and
-    norm_y_weights=False. Mode B is not yet supported so the gPLS class
-    is configured to mode="A" and algorithm=None.
+    gPLSRegression inherits from _gPLS with deflation_mode="regression",
+    norm_y_weights=False and with algorithm="NA".
         
     Parameters
     ----------
@@ -262,7 +263,7 @@ class gPLSRegression(_gPLS):
                  n_components=2, scale=True, max_iter=500, tol=1e-06,
                  copy=True):
         super().__init__(
-            x_block, x_groups, y_block=None, y_groups=None,
+            x_block, x_groups, y_block=y_block, y_groups=y_groups,
             n_components=n_components, scale=scale,
             deflation_mode="regression", norm_y_weights=False,
             max_iter=max_iter, tol=tol, copy=copy)
@@ -271,9 +272,8 @@ class gPLSRegression(_gPLS):
 class gPLSCanonical(_gPLS):
     """gPLS canonical
 
-    gPLSCanonical inherits from _gPLS with deflation_mode="canonical" and
-    norm_y_weights=False. Mode B is not yet supported so the gPLS class
-    is configured to mode="A" and algorithm=None.
+    gPLSCanonical inherits from _gPLS with deflation_mode="canonical",
+    norm_y_weights=True and with algorithm="NA".
         
     Parameters
     ----------
@@ -391,7 +391,7 @@ class gPLSCanonical(_gPLS):
                  n_components=2, scale=True, max_iter=500, tol=1e-06,
                  copy=True):
         super().__init__(
-            x_block, x_groups, y_block=None, y_groups=None,
+            x_block, x_groups, y_block=y_block, y_groups=y_groups,
             n_components=n_components, scale=scale,
-            deflation_mode="canonical", norm_y_weights=False,
+            deflation_mode="canonical", norm_y_weights=True,
             max_iter=max_iter, tol=tol, copy=copy)

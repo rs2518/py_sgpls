@@ -23,8 +23,8 @@ class _PLS(TransformerMixin, RegressorMixin, MultiOutputMixin, BaseEstimator,
            metaclass=ABCMeta):
     """Partial Least Squares (PLS)
     
-    This class implements the generic PLS algorithm, constructors' parameters
-    allow to obtain a specific implementation such as:
+    This class implements the generic mode A PLS algorithm, constructors' 
+    parameters allow to obtain a specific implementation such as:
         
     - PLS2 regression, i.e., PLS 2 blocks, mode A, with asymmetric deflation
       and unnormalized y weights such as defined by [Tenenhaus 1998] p. 132.
@@ -48,14 +48,14 @@ class _PLS(TransformerMixin, RegressorMixin, MultiOutputMixin, BaseEstimator,
     scale : boolean, scale data? (default True)
     
     deflation_mode : str, "canonical" or "regression". See notes.
-    
-    mode : "A" classical PLS and "B" CCA. See notes.
-    
+        
     norm_y_weights : boolean, normalize Y weights to one? (default False)
     
-    algorithm : string, "nipals" or "svd"
-        The algorithm used to estimate the weights. It will be called
-        n_components times, i.e. once for each iteration of the outer loop.
+    algorithm : string, "nipals", "svd" or "NA"
+        The algorithm used to estimate the weights for PLS models only
+        (PLSRegression and PLSCanonical). It will be called n_components
+        times, i.e. once for each iteration of the outer loop.
+        Algorithm is inactive for all other pls variants and is set to "NA".
         
     max_iter : int (default 500)
         The maximum number of iterations
@@ -133,11 +133,10 @@ class _PLS(TransformerMixin, RegressorMixin, MultiOutputMixin, BaseEstimator,
 
     @abstractmethod
     def __init__(self, n_components=2, scale=True, deflation_mode="regression",
-                 mode="A", algorithm="nipals", norm_y_weights=False,
+                 algorithm="nipals", norm_y_weights=False,
                  max_iter=500, tol=1e-06, copy=True):
         self.n_components = n_components
         self.deflation_mode = deflation_mode
-        self.mode = mode
         self.norm_y_weights = norm_y_weights
         self.scale = scale
         self.algorithm = algorithm
@@ -176,17 +175,18 @@ class _PLS(TransformerMixin, RegressorMixin, MultiOutputMixin, BaseEstimator,
         if self.n_components < 1 or self.n_components > p:
             raise ValueError('Invalid number of components: %d' %
                              self.n_components)
-        if self.algorithm not in ("svd", "nipals", None):
+        if self.algorithm not in ("svd", "nipals", "NA"):
             raise ValueError("Got algorithm %s when only 'svd', "
                              "'nipals' and None are known" % self.algorithm)
-        if self.algorithm == "svd" and self.mode == "B":
-            raise ValueError('Incompatible configuration: mode B is not '
-                             'implemented with svd algorithm')
         if self.deflation_mode not in ["canonical", "regression"]:
             raise ValueError('The deflation mode is unknown')
-        if self.algorithm == None and self.model == "pls":
-            raise ValueError("Incompatible configuration: only 'svd' and "
-                             "'nipals' can be implemented with PLS model")
+        if self.algorithm == "NA" and self.model == "pls":
+            raise ValueError("Incompatible configuration: pls model must be "
+                             "implemented with either 'svd' or 'nipals'")
+        if self.algorithm != "NA" and self.model != "pls":
+            raise ValueError("Incompatible configuration: %s model cannot "
+                             "be implemented with %s. Set algorithm to 'NA'"
+                             % (self.model, self.algorithm))
             
         # Validate sparsity parameters (if any)
         if self.model == "pls":
@@ -488,7 +488,7 @@ class PLSRegression(_PLS):
     
     PLSRegression implements the PLS 2 blocks regression known as PLS2 or PLS1
     in case of one dimensional response.
-    This class inherits from _PLS with mode="A", deflation_mode="regression",
+    This class inherits from _PLS with deflation_mode="regression",
     norm_y_weights=False and algorithm="nipals".
     
     Read more in the :ref:`User Guide <cross_decomposition>`.
@@ -500,6 +500,12 @@ class PLSRegression(_PLS):
         
     scale : boolean, (default True)
         whether to scale the data
+        
+    algorithm : string, "nipals", "svd" or "NA"
+        The algorithm used to estimate the weights for PLS models only
+        (PLSRegression and PLSCanonical). It will be called n_components
+        times, i.e. once for each iteration of the outer loop.
+        Algorithm is inactive for all other pls variants and is set to "NA".
         
     max_iter : an integer, (default 500)
         the maximum number of iterations of the NIPALS inner loop (used
@@ -612,11 +618,11 @@ class PLSRegression(_PLS):
     Editions Technic.
     """
 
-    def __init__(self, n_components=2, scale=True,
+    def __init__(self, n_components=2, scale=True, algorithm="nipals",
                  max_iter=500, tol=1e-06, copy=True):
         super().__init__(
             n_components=n_components, scale=scale,
-            deflation_mode="regression", mode="A",
+            deflation_mode="regression", algorithm=algorithm,
             norm_y_weights=False, max_iter=max_iter, tol=tol,
             copy=copy)
 
@@ -625,7 +631,7 @@ class PLSCanonical(_PLS):
     """ PLSCanonical implements the 2 blocks canonical PLS of the original Wold
     algorithm [Tenenhaus 1998] p.204, referred as PLS-C2A in [Wegelin 2000].
     
-    This class inherits from PLS with mode="A" and deflation_mode="canonical",
+    This class inherits from PLS with and deflation_mode="canonical",
     norm_y_weights=True and algorithm="nipals", but svd should provide similar
     results up to numerical errors.
     
@@ -639,9 +645,11 @@ class PLSCanonical(_PLS):
     scale : boolean, (default True)
         Option to scale data
         
-    algorithm : string, "nipals" or "svd"
-        The algorithm used to estimate the weights. It will be called
-        n_components times, i.e. once for each iteration of the outer loop.
+    algorithm : string, "nipals", "svd" or "NA"
+        The algorithm used to estimate the weights for PLS models only
+        (PLSRegression and PLSCanonical). It will be called n_components
+        times, i.e. once for each iteration of the outer loop.
+        Algorithm is inactive for all other pls variants and is set to "NA".
         
     max_iter : an integer, (default 500)
         the maximum number of iterations of the NIPALS inner loop (used
@@ -755,6 +763,6 @@ class PLSCanonical(_PLS):
                  max_iter=500, tol=1e-06, copy=True):
         super().__init__(
             n_components=n_components, scale=scale,
-            deflation_mode="canonical", mode="A",
-            norm_y_weights=True, algorithm=algorithm,
-            max_iter=max_iter, tol=tol, copy=copy)
+            deflation_mode="canonical", algorithm=algorithm,
+            norm_y_weights=True, max_iter=max_iter, tol=tol,
+            copy=copy)

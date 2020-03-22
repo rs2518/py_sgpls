@@ -104,8 +104,10 @@ class _sPLS(_PLS):
     def __init__(self, x_vars, y_vars=None, n_components=2, scale=True,
                  deflation_mode="regression", norm_y_weights=False,
                  max_iter=500, tol=1e-06, copy=True):
-        super().__init__(n_components, scale, deflation_mode, norm_y_weights,
-                         max_iter, tol, copy, algorithm=None, mode="A")
+        super().__init__(n_components=n_components, scale=scale,
+                         deflation_mode=deflation_mode, algorithm="NA",
+                         norm_y_weights=norm_y_weights,
+                         max_iter=max_iter, tol=tol, copy=copy)
         self.x_vars = _check_1d(x_vars)
         self.y_vars = _check_1d(y_vars)
 
@@ -113,10 +115,8 @@ class _sPLS(_PLS):
 class sPLSRegression(_sPLS):
     """sPLS regression
       
-    sPLSRegression inherits from _sPLS with deflation_mode="regression" and
-    norm_y_weights=False. Mode B is not yet supported so the sPLS class
-    is configured to mode="A" and algorithm=None.
-        
+    sPLSRegression inherits from _sPLS with deflation_mode="regression",
+    norm_y_weights=False and with algorithm="NA".
     Parameters
     ----------
     n_components : int, (default 2)
@@ -215,9 +215,8 @@ class sPLSRegression(_sPLS):
 class sPLSCanonical(_sPLS):
     """sPLS canonical
 
-    sPLSCanonical inherits from _sPLS with deflation_mode="canonical" and
-    norm_y_weights=False. Mode B is not yet supported so the sPLS class
-    is configured to mode="A" and algorithm=None.
+    sPLSCanonical inherits from _sPLS with deflation_mode="canonical",
+    norm_y_weights=True and with algorithm="NA".
         
     Parameters
     ----------
@@ -310,5 +309,5 @@ class sPLSCanonical(_sPLS):
         super().__init__(
             x_vars, y_vars=y_vars, n_components=n_components,
             scale=scale, deflation_mode="canonical",
-            norm_y_weights=False, max_iter=max_iter,
+            norm_y_weights=True, max_iter=max_iter,
             tol=tol, copy=copy)

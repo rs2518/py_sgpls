@@ -73,6 +73,10 @@ class _sgPLS(_gPLS):
     tol : non-negative real, (default 1e-06)
         Tolerance used in the iterative algorithm.
         
+        
+    ***** ADD LAMBDA_TOL, LAMBDA_MAX_ITER ETC
+        
+        
     copy : boolean, (default True)
         Whether the deflation should be done on a copy. Let the default
         value to True unless you don't care about side effect.
@@ -145,23 +149,25 @@ class _sgPLS(_gPLS):
                  n_components=2, scale=True, deflation_mode="regression",
                  norm_y_weights=False, max_iter=500, tol=1e-06,
                  lambda_tol=np.finfo(float).eps**0.25,
-                 max_lambda=1e+05, lambda_niter=1000, copy=True):
-        super().__init__(x_block, x_groups, y_block, y_groups,
-                         n_components, scale, deflation_mode,
-                         norm_y_weights, max_iter, tol, copy)
+                 max_lambda=1e+05, lambda_max_iter=1000, copy=True):
+        super().__init__(x_block, x_groups,
+                         y_block=y_block, y_groups=y_groups,
+                         n_components=n_components, scale=scale,
+                         deflation_mode=deflation_mode,
+                         norm_y_weights=norm_y_weights,
+                         max_iter=max_iter, tol=tol, copy=copy)
         self.alpha_x = _check_1d(alpha_x)
         self.alpha_y = _check_1d(alpha_y)
         self.lambda_tol = lambda_tol
         self.max_lambda = max_lambda
-        self.lambda_niter = lambda_niter
+        self.lambda_max_iter = lambda_max_iter
         
             
 class sgPLSRegression(_sgPLS):
     """sgPLS regression
     
-    sgPLSRegression inherits from _sgPLS with deflation_mode="regression" and
-    norm_y_weights=False. Mode B is not yet supported so the sgPLS class
-    is configured to mode="A" and algorithm=None.
+    sgPLSRegression inherits from _sgPLS with deflation_mode="regression",
+    norm_y_weights=False and with algorithm="NA".
         
     Parameters
     ----------
@@ -287,22 +293,22 @@ class sgPLSRegression(_sgPLS):
                  y_block=None, y_groups=None, alpha_y=None,
                  n_components=2, scale=True, max_iter=500, tol=1e-06,
                  lambda_tol=np.finfo(float).eps**0.25,
-                 max_lambda=1e+05, lambda_niter=1000, copy=True):
+                 max_lambda=1e+05, lambda_max_iter=1000, copy=True):
         super().__init__(x_block, x_groups, alpha_x,
                          y_block=y_block, y_groups=y_groups, alpha_y=alpha_y,
                          n_components=n_components, scale=scale,
                          deflation_mode="regression", norm_y_weights=False,
                          max_iter=max_iter, tol=tol, lambda_tol=lambda_tol,
-                         max_lambda=max_lambda, lambda_niter=lambda_niter,
+                         max_lambda=max_lambda,
+                         lambda_max_iter=lambda_max_iter,
                          copy=copy)
 
 
 class sgPLSCanonical(_sgPLS):
     """sgPLS canonical
     
-    sgPLSCanonical inherits from _sgPLS with deflation_mode="canonical" and
-    norm_y_weights=False. Mode B is not yet supported so the sgPLS class
-    is configured to mode="A" and algorithm=None.
+    sgPLSCanonical inherits from _sgPLS with deflation_mode="canonical",
+    norm_y_weights=True and with algorithm="NA".
         
     Parameters
     ----------
@@ -428,11 +434,12 @@ class sgPLSCanonical(_sgPLS):
                  y_block=None, y_groups=None, alpha_y=None,
                  n_components=2, scale=True, max_iter=500, tol=1e-06,
                  lambda_tol=np.finfo(float).eps**0.25,
-                 max_lambda=1e+05, lambda_niter=1000, copy=True):
+                 max_lambda=1e+05, lambda_max_iter=1000, copy=True):
         super().__init__(x_block, x_groups, alpha_x,
                          y_block=y_block, y_groups=y_groups, alpha_y=alpha_y,
                          n_components=n_components, scale=scale,
-                         deflation_mode="canonical", norm_y_weights=False,
+                         deflation_mode="canonical", norm_y_weights=True,
                          max_iter=max_iter, tol=tol, lambda_tol=lambda_tol,
-                         max_lambda=max_lambda, lambda_niter=lambda_niter,
+                         max_lambda=max_lambda,
+                         lambda_max_iter=lambda_max_iter,
                          copy=copy)
