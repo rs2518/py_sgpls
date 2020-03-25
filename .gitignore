@@ -4,3 +4,6 @@ data/
 # Byte-compiled files
 __pycache__/
 *.pyc
+
+# Scrap code
+scrap.py
