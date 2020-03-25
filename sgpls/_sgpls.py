@@ -73,9 +73,17 @@ class _sgPLS(_gPLS):
     tol : non-negative real, (default 1e-06)
         Tolerance used in the iterative algorithm.
         
+    max_lambda : non-negative real, (default 1e+05)
+        The maximum value of lambda considered in the numerical method for
+        sparse group penalisation.
         
-    ***** ADD LAMBDA_TOL, LAMBDA_MAX_ITER ETC
+    max_lambda_iter : int, (default 1000)
+        The maximum number of iterations in the numerical method for
+        sparse group penalisation.
         
+    lambda_tol : non-negative real, (default np.finfo(float).eps ** 0.25)
+        Tolerance used in the numerical method for sparse group penalisation.
+        Default is the 4th root of the machine epsilon for float types.
         
     copy : boolean, (default True)
         Whether the deflation should be done on a copy. Let the default
@@ -148,8 +156,9 @@ class _sgPLS(_gPLS):
                  y_block=None, y_groups=None, alpha_y=None,
                  n_components=2, scale=True, deflation_mode="regression",
                  norm_y_weights=False, max_iter=500, tol=1e-06,
+                 max_lambda=1e+05, lambda_max_iter=1000,
                  lambda_tol=np.finfo(float).eps**0.25,
-                 max_lambda=1e+05, lambda_max_iter=1000, copy=True):
+                 copy=True):
         super().__init__(x_block, x_groups,
                          y_block=y_block, y_groups=y_groups,
                          n_components=n_components, scale=scale,
@@ -158,9 +167,9 @@ class _sgPLS(_gPLS):
                          max_iter=max_iter, tol=tol, copy=copy)
         self.alpha_x = _check_1d(alpha_x)
         self.alpha_y = _check_1d(alpha_y)
-        self.lambda_tol = lambda_tol
         self.max_lambda = max_lambda
         self.lambda_max_iter = lambda_max_iter
+        self.lambda_tol = lambda_tol
         
             
 class sgPLSRegression(_sgPLS):
@@ -209,6 +218,18 @@ class sgPLSRegression(_sgPLS):
         
     tol : non-negative real, (default 1e-06)
         Tolerance used in the iterative algorithm.
+        
+    max_lambda : non-negative real, (default 1e+05)
+        The maximum value of lambda considered in the numerical method for
+        sparse group penalisation.
+        
+    max_lambda_iter : int, (default 1000)
+        The maximum number of iterations in the numerical method for
+        sparse group penalisation.
+        
+    lambda_tol : non-negative real, (default np.finfo(float).eps ** 0.25)
+        Tolerance used in the numerical method for sparse group penalisation.
+        Default is the 4th root of the machine epsilon for float types.
         
     copy : boolean, (default True)
         Whether the deflation should be done on a copy. Let the default
@@ -292,8 +313,8 @@ class sgPLSRegression(_sgPLS):
     def __init__(self, x_block, x_groups, alpha_x,
                  y_block=None, y_groups=None, alpha_y=None,
                  n_components=2, scale=True, max_iter=500, tol=1e-06,
-                 lambda_tol=np.finfo(float).eps**0.25,
-                 max_lambda=1e+05, lambda_max_iter=1000, copy=True):
+                 max_lambda=1e+05, lambda_max_iter=1000,
+                 lambda_tol=np.finfo(float).eps**0.25, copy=True):
         super().__init__(x_block, x_groups, alpha_x,
                          y_block=y_block, y_groups=y_groups, alpha_y=alpha_y,
                          n_components=n_components, scale=scale,
@@ -350,6 +371,18 @@ class sgPLSCanonical(_sgPLS):
         
     tol : non-negative real, (default 1e-06)
         Tolerance used in the iterative algorithm.
+                
+    max_lambda : non-negative real, (default 1e+05)
+        The maximum value of lambda considered in the numerical method for
+        sparse group penalisation.
+        
+    max_lambda_iter : int, (default 1000)
+        The maximum number of iterations in the numerical method for
+        sparse group penalisation.
+        
+    lambda_tol : non-negative real, (default np.finfo(float).eps ** 0.25)
+        Tolerance used in the numerical method for sparse group penalisation.
+        Default is the 4th root of the machine epsilon for float types.
         
     copy : boolean, (default True)
         Whether the deflation should be done on a copy. Let the default
@@ -433,8 +466,8 @@ class sgPLSCanonical(_sgPLS):
     def __init__(self, x_block, x_groups, alpha_x,
                  y_block=None, y_groups=None, alpha_y=None,
                  n_components=2, scale=True, max_iter=500, tol=1e-06,
-                 lambda_tol=np.finfo(float).eps**0.25,
-                 max_lambda=1e+05, lambda_max_iter=1000, copy=True):
+                 max_lambda=1e+05, lambda_max_iter=1000,
+                 lambda_tol=np.finfo(float).eps**0.25, copy=True):
         super().__init__(x_block, x_groups, alpha_x,
                          y_block=y_block, y_groups=y_groups, alpha_y=alpha_y,
                          n_components=n_components, scale=scale,
