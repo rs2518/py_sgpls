@@ -130,11 +130,13 @@ def _spls_inner_loop(X, Y, x_var, y_var, max_iter=500, tol=1e-06,
         if x_var == 0:
             lambda_x = 0
         else:
-            lambda_x = sorted(np.absolute(M_v))[x_var]
+            lambda_x = sorted(np.absolute(M_v))[x_var - 1]
         # The number of non-zero X loadings gives the appropriate value
         # for penalisation of X variables.
         # 1.3 Update u : the X weights
         u = _soft_thresholding(M_v, lambda_x)
+        if np.dot(u.T, u) < eps:
+            u += eps
         # 1.4 Normalise u
         u /= np.sqrt(np.dot(u.T, u)) + eps
         
@@ -144,7 +146,7 @@ def _spls_inner_loop(X, Y, x_var, y_var, max_iter=500, tol=1e-06,
         if y_var == 0:
             lambda_y = 0
         else:
-            lambda_y = sorted(np.absolute(M_u))[y_var]
+            lambda_y = sorted(np.absolute(M_u))[y_var - 1]
         # 2.3 Update v : the Y weights
         v = _soft_thresholding(M_u, lambda_y)
         # 2.4 Normalise v

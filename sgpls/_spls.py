@@ -208,7 +208,7 @@ class sPLSRegression(_sPLS):
         super().__init__(
             x_vars, y_vars=y_vars, n_components=n_components,
             scale=scale, deflation_mode="regression",
-            norm_y_weights=False, max_iter=max_iter,
+            norm_y_weights=True, max_iter=max_iter,
             tol=tol, copy=copy)
 
 

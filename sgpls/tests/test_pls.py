@@ -166,7 +166,6 @@ np.testing.assert_array_almost_equal(splsreg.y_loadings_,
 np.testing.assert_array_almost_equal(splsreg.y_weights_,
                                      sPLS_R_reg['regression_loadings_2'])
 
-# ***** ERROR! Small errors appearing. Check 'eps' from inner loops 
 
 # Canonical Mode
 splsca = spls_.sPLSCanonical(x_vars=x_vars, y_vars=y_vars,
@@ -187,6 +186,10 @@ np.testing.assert_array_almost_equal(splsca.y_loadings_,
 np.testing.assert_array_almost_equal(splsca.y_weights_,
                                      sPLS_R_ca['canonical_loadings_2'])
 
+# ***** FIXED! Zero-indexing accounted for in variable penalisation
+# (subtract 1 from index)
+# Regression: norm_y_weights set to True
+# Canonical: norm_y_weights set to False
 
 
 
@@ -205,4 +208,3 @@ sgplsreg = sgpls_.sgPLSRegression(x_groups=x_groups, y_groups=y_groups,
                                   alpha_x=alpha_x, alpha_y=alpha_y,
                                   n_components=n_components)
 sgplsreg.fit(X, Y)
-
