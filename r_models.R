@@ -46,7 +46,6 @@ Y <- matrix(c(gam1, gam2), ncol = 2, byrow = FALSE) %*% matrix(c(theta.y1, theta
 
 
 #### Model parameters
-
 ncomp = 2
 
 keepX <- keepY <- c(60, 60)    # sPLS sparsity
@@ -60,58 +59,63 @@ alpha.x <- alpha.y <- c(0.95, 0.95)    # sgPLS sparsity mixin
 #############################################################################################
 # sgPLS package - Compare results
 #############################################################################################
-# #### Compare to _lambda_quadratic
-# set.seed(101096)
-# vec <- round(runif(5, -10, 10))/10
-# alpha <- 1/2
-# lambda.space <- seq(0, 5, by=0.5)
-# lq <- NULL
-# for (i in 1:length(lambda.space)){
-#   lq <- c(lq, lambda.quadra(lambda.space[i], vec, alpha))}
+modes <- c("regression", "canonical")
+scale <- TRUE
 
-#### sPLS model
-sgPLS_spls <- sPLS(X, Y, ncomp = ncomp, mode = "regression", keepX = keepX, keepY = keepY)
+for (i in length(modes)){
+  
+  #### sPLS model
+  sgPLS_spls <- sPLS(X, Y, ncomp = ncomp, mode = modes[i], keepX = keepX, keepY = keepY, scale = scale)
+  
+  # result.sPLS <- select.spls(sgPLS_spls)    # Returns the indices of non-zero variables
+  # result.sPLS$select.X
+  # result.sPLS$select.Y
+  
+  #### gPLS model
+  sgPLS_gpls <- gPLS(X, Y, ncomp = ncomp, mode = modes[i], keepX = keepX.groups,
+                     keepY = keepY.groups, ind.block.x = ind.block.x , ind.block.y = ind.block.y,
+                     scale = scale)
+  
+  # result.gPLS <- select.sgpls(sgPLS_gpls)    # Returns the indices of non-zero groups of variables (and group sizes)
+  # result.gPLS$group.size.X
+  # result.gPLS$group.size.Y
+  
+  #### sgPLS model
+  sgPLS_sgpls <- sgPLS(X, Y, ncomp = ncomp, mode = modes[i], keepX = keepX.groups,
+                       keepY = keepY.groups, ind.block.x = ind.block.x, ind.block.y = ind.block.y,
+                       alpha.x = alpha.x, alpha.y = alpha.y, scale = scale)
+  
+  # result.sgPLS <- select.sgpls(sgPLS_sgpls)    # Returns the indices of non-zero groups and number of non-zero variables in each group
+  # result.sgPLS$group.size.X
+  # result.sgPLS$group.size.Y
+  
+  
+  ##### Save model elements into individual files. Create new directory if one doesn't already exist
+  # NOTE: R models cannot be directly saved and loaded into Python. Python packages 'rpy2' and 'pyreadr' exist
+  # to try and fix this however, pyreadr cannot parse the R object and rpy2 does not work on new versions of Python
+  path <- "~/Desktop/py_sgpls/data/dataset1/"
+  ifelse(dir.exists(path), "", dir.create(path, showWarnings=FALSE))
+  
+  model_list <- c("sgPLS_spls", "sgPLS_gpls", "sgPLS_sgpls")
+  skip <- c("call", "X", "Y", "ncomp", "mode", "keepX", "keepY", "names", "tol", "max.iter",
+            "iter", "ind.block.x", "ind.block.y", "alpha.x", "alpha.y", "upper.lambda")
+  
+  for (model in model_list){
+    ifelse(dir.exists(paste0(path, model)), "", dir.create(paste0(path, model), showWarnings=FALSE))
+    for (item in names(get(model))){
+      if (!(item %in% skip)){
+        if (is.list(get(model)[[item]])){
+          for (index in 1:length(get(model)[[item]])){
+           write.csv(as.data.frame(get(model)[[item]][index]),
+                     file=paste0(path, model, "/", modes[i], "_", item, "_", index, ".csv"))}}
+        else{
+          write.csv(as.data.frame(get(model)[[item]]),
+                    file=paste0(path, model, "/", modes[i], "_", item, ".csv"))}}}}
+}
 
-result.sPLS <- select.spls(sgPLS_spls)    # Returns the indices of non-zero variables
-result.sPLS$select.X
-result.sPLS$select.Y
 
-#### gPLS model
-sgPLS_gpls <- gPLS(X, Y, ncomp = ncomp, mode = "regression", keepX = keepX.groups,
-                   keepY = keepY.groups, ind.block.x = ind.block.x , ind.block.y = ind.block.y)
-
-result.gPLS <- select.sgpls(sgPLS_gpls)    # Returns the indices of non-zero groups of variables (and group sizes)
-result.gPLS$group.size.X
-result.gPLS$group.size.Y
-
-#### sgPLS model
-sgPLS_sgpls <- sgPLS(X, Y, ncomp = ncomp, mode = "regression", keepX = keepX.groups,
-                     keepY = keepY.groups, ind.block.x = ind.block.x, ind.block.y = ind.block.y,
-                     alpha.x = alpha.x, alpha.y = alpha.y)
-
-result.sgPLS <- select.sgpls(sgPLS_sgpls)    # Returns the indices of non-zero groups and number of non-zero variables in each group
-result.sgPLS$group.size.X
-result.sgPLS$group.size.Y
-
-
-##### Save model elements into individual files. Create new directory if one doesn't already exist
-# NOTE: R models cannot be directly saved and loaded into Python. Python packages 'rpy2' and 'pyreadr' exist
-# to try and fix this however, pyreadr cannot parse the R object and rpy2 does not work on new versions of Python
-path <- "~/Desktop/py_sgpls/Data/"
-model_list <- c("sgPLS_spls", "sgPLS_gpls", "sgPLS_sgpls")
-skip <- c("call", "names")
-
-for (model in model_list){
-  ifelse(dir.exists(paste0(path, model)), "", dir.create(paste0(path, model), showWarnings=FALSE))
-  for (item in names(get(model))){
-    if (!(item %in% skip)){
-      if (is.list(get(model)[[item]])){
-        for (index in 1:length(get(model)[[item]])){
-         write.csv(as.data.frame(get(model)[[item]][index]),
-                   file=paste0(path, model, "/", item, "_", index, ".csv"))}}
-      else{
-        write.csv(as.data.frame(get(model)[[item]]),
-                  file=paste0(path, model, "/", item, ".csv"))}}}}
+write.csv(X, file=paste0(path,"X.csv"))
+write.csv(Y, file=paste0(path,"Y.csv"))
 
 #############################################################################################
 # sgPLS package - Run times (regression mode)
@@ -150,3 +154,30 @@ colnames(run_times) <- paste("t", seq(n_runs), sep="")
 
 mean_times <- as.data.frame(apply(run_times, MARGIN=1, FUN = mean))
 sd_times <- as.data.frame(apply(run_times, MARGIN=1, FUN = sd))     # NOTE: Dropping colnames removes values (BUG)
+
+
+
+#############################################################################################
+# internal functions test
+#############################################################################################
+# #### Compare to _lambda_quadratic
+# set.seed(101096)
+# vec <- round(runif(5, -10, 10))/10
+# alpha <- 1/2
+# lambda.space <- seq(0, 5, by=0.5)
+# lq <- NULL
+# for (i in 1:length(lambda.space)){
+#   lq <- c(lq, lambda.quadra(lambda.space[i], vec, alpha))}
+
+
+
+# #### Compare to spls_inner_loop
+
+test_model <- sPLS(X, Y, ncomp = ncomp, mode = "canonical", keepX = keepX, keepY = keepY, scale = TRUE)
+View(test_model[["loadings"]][["X"]])    # x_weights
+View(test_model[["loadings"]][["Y"]])    # y_weights
+View(test_model[["variates"]][["X"]])    # x_scores
+View(test_model[["variates"]][["Y"]])    # y_scores
+View(test_model[["mat.c"]])    # x_loadings
+# View(test_model[["mat.d"]])    # y_loadings
+View(test_model[["mat.e"]])    # y_loadings

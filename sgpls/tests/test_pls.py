@@ -34,20 +34,25 @@ import numpy as np
 #    - rpy2 cannot be imported because it requires an older version of Python.
 
 
-data_path = "Desktop/py_sgpls/data/"
-# folders = [f for f in os.listdir(path) if f.endswith("pls")]
+data_path = "Desktop/py_sgpls/data/dataset1"
+# folders = [f for f in os.listdir(data_path) if f.endswith("pls")]
 
 
-def load_csv_data(directory):
+def load_csv_data(directory, find=None):
     """Returns dictionary of data obtained from a directory
     
     Collects data loaded from all '.csv' files found in the given directory
-    into a dictionary. Data in the dictionary can be accessed using the
-    corresponding file name without the '.csv' extension.
+    into a dictionary. Search can be narrowed to files which contain
+    specific characters given by 'find'.
+    Data in the dictionary can be accessed using the corresponding file
+    name without the '.csv' extension.
     """
+    if find is None:
+        find = ""
+        
     dict_df = {}
     for file in os.listdir(directory):
-        if file.endswith('.csv'):
+        if file.endswith('.csv') and find in file:
             df = pd.read_csv(os.path.join(directory, file), index_col=0)
             # Drop strange column name
             if len(df.columns)==1 and list(df.columns)==['get(model)[[item]]']:
@@ -57,23 +62,26 @@ def load_csv_data(directory):
     return dict_df
 
 
-sPLS_Rmodel = load_csv_data(os.path.join(data_path, 'sgPLS_spls'))
-gPLS_Rmodel = load_csv_data(os.path.join(data_path, 'sgPLS_gpls'))
-sgPLS_Rmodel = load_csv_data(os.path.join(data_path, 'sgPLS_sgpls'))
+sPLS_R_reg = load_csv_data(os.path.join(data_path, 'sgPLS_spls'),
+                           find="regression")
+gPLS_R_reg = load_csv_data(os.path.join(data_path, 'sgPLS_gpls'),
+                           find="regression")
+sgPLS_R_reg = load_csv_data(os.path.join(data_path, 'sgPLS_sgpls'),
+                            find="regression")
+sPLS_R_ca = load_csv_data(os.path.join(data_path, 'sgPLS_spls'),
+                          find="canonical")
+gPLS_R_ca = load_csv_data(os.path.join(data_path, 'sgPLS_gpls'),
+                          find="canonical")
+sgPLS_R_ca = load_csv_data(os.path.join(data_path, 'sgPLS_sgpls'),
+                           find="canonical")
 
 
 
-# X_matrix = pd.read_csv(directory+'/data/simulated_data.csv',
-#                        dtype='float').drop(columns=['Unnamed: 0'])
-# 
-# Y_matrix = pd.read_csv(directory+'/data/simulated_target.csv',
-#                        dtype='float').drop(columns=['Unnamed: 0'])
-# 
-# X = X_matrix.values
-# Y = Y_matrix.values
 
-X = sPLS_Rmodel['X'].values
-Y = sPLS_Rmodel['Y'].values
+X = pd.read_csv(os.path.join(data_path, "X.csv"), index_col = 0,
+                dtype='float').values
+Y = pd.read_csv(os.path.join(data_path, "Y.csv"), index_col = 0,
+                dtype='float').values
 
 n_components = 2
 
@@ -101,17 +109,17 @@ plsreg_sklearn.fit(X, Y)
 
 
 np.testing.assert_array_almost_equal(plsreg.x_scores_,
-                                     plsreg_sklearn.x_scores_, decimal=6)
+                                     plsreg_sklearn.x_scores_)
 np.testing.assert_array_almost_equal(plsreg.x_loadings_,
-                                     plsreg_sklearn.x_loadings_, decimal=6)
+                                     plsreg_sklearn.x_loadings_)
 np.testing.assert_array_almost_equal(plsreg.x_weights_,
-                                     plsreg_sklearn.x_weights_, decimal=6)
+                                     plsreg_sklearn.x_weights_)
 np.testing.assert_array_almost_equal(plsreg.y_scores_,
-                                     plsreg_sklearn.y_scores_, decimal=6)
+                                     plsreg_sklearn.y_scores_)
 np.testing.assert_array_almost_equal(plsreg.y_loadings_,
-                                     plsreg_sklearn.y_loadings_, decimal=6)
+                                     plsreg_sklearn.y_loadings_)
 np.testing.assert_array_almost_equal(plsreg.y_weights_,
-                                     plsreg_sklearn.y_weights_, decimal=6)
+                                     plsreg_sklearn.y_weights_)
 
 
 # Canonical Mode
@@ -122,17 +130,17 @@ plsca_sklearn.fit(X, Y)
 
 
 np.testing.assert_array_almost_equal(plsca.x_scores_,
-                                     plsca_sklearn.x_scores_, decimal=6)
+                                     plsca_sklearn.x_scores_)
 np.testing.assert_array_almost_equal(plsca.x_loadings_,
-                                     plsca_sklearn.x_loadings_, decimal=6)
+                                     plsca_sklearn.x_loadings_)
 np.testing.assert_array_almost_equal(plsca.x_weights_,
-                                     plsca_sklearn.x_weights_, decimal=6)
+                                     plsca_sklearn.x_weights_)
 np.testing.assert_array_almost_equal(plsca.y_scores_,
-                                     plsca_sklearn.y_scores_, decimal=6)
+                                     plsca_sklearn.y_scores_)
 np.testing.assert_array_almost_equal(plsca.y_loadings_,
-                                     plsca_sklearn.y_loadings_, decimal=6)
+                                     plsca_sklearn.y_loadings_)
 np.testing.assert_array_almost_equal(plsca.y_weights_,
-                                     plsca_sklearn.y_weights_, decimal=6)
+                                     plsca_sklearn.y_weights_)
 
 # ***** SUCCESS! PLS models seem to work
 
@@ -146,42 +154,40 @@ splsreg.fit(X, Y)
 
 
 np.testing.assert_array_almost_equal(splsreg.x_scores_,
-                                     sPLS_Rmodel['variates_1'], decimal=6)
+                                     sPLS_R_reg['regression_variates_1'])
 np.testing.assert_array_almost_equal(splsreg.x_loadings_,
-                                     sPLS_Rmodel['mat.c'], decimal=6)
+                                     sPLS_R_reg['regression_mat.c'])
 np.testing.assert_array_almost_equal(splsreg.x_weights_,
-                                     sPLS_Rmodel['loadings_1'], decimal=6)
+                                     sPLS_R_reg['regression_loadings_1'])
 np.testing.assert_array_almost_equal(splsreg.y_scores_,
-                                     sPLS_Rmodel['variates_2'], decimal=6)
+                                     sPLS_R_reg['regression_variates_2'])
 np.testing.assert_array_almost_equal(splsreg.y_loadings_,
-                                     sPLS_Rmodel['loadings_2'], decimal=6)
+                                     sPLS_R_reg['regression_mat.d'])
 np.testing.assert_array_almost_equal(splsreg.y_weights_,
-                                     sPLS_Rmodel['mat.d'], decimal=6)
+                                     sPLS_R_reg['regression_loadings_2'])
 
 # ***** ERROR! Small errors appearing. Check 'eps' from inner loops 
 
-# NOTE: Run models for regression and canonical modes. Consider renaming
-# R models to avoid confusion between modes
+# Canonical Mode
+splsca = spls_.sPLSCanonical(x_vars=x_vars, y_vars=y_vars,
+                             n_components=n_components)
+splsca.fit(X, Y)
 
 
-# # Canonical Mode
-# splsca = spls_.sPLSCanonical(n_components=n_components,
-#                               x_vars=x_vars, y_vars=y_vars)
-# splsca.fit(X, Y)
-# 
-# 
-# np.testing.assert_array_almost_equal(splsca.x_scores_,
-#                                      sPLS_Rmodel['variates_1'], decimal=6)
-# np.testing.assert_array_almost_equal(splsca.x_loadings_,
-#                                      sPLS_Rmodel['mat.c'], decimal=6)
-# np.testing.assert_array_almost_equal(splsca.x_weights_,
-#                                      sPLS_Rmodel['loadings_1'], decimal=6)
-# np.testing.assert_array_almost_equal(splsca.y_scores_,
-#                                      sPLS_Rmodel['variates_2'], decimal=6)
-# np.testing.assert_array_almost_equal(splsca.y_loadings_,
-#                                      sPLS_Rmodel['loadings_2'], decimal=6)
-# np.testing.assert_array_almost_equal(splsca.y_weights_,
-#                                      sPLS_Rmodel['mat.e'], decimal=6)
+np.testing.assert_array_almost_equal(splsca.x_scores_,
+                                     sPLS_R_ca['canonical_variates_1'])
+np.testing.assert_array_almost_equal(splsca.x_loadings_,
+                                     sPLS_R_ca['canonical_mat.c'])
+np.testing.assert_array_almost_equal(splsca.x_weights_,
+                                     sPLS_R_ca['canonical_loadings_1'])
+np.testing.assert_array_almost_equal(splsca.y_scores_,
+                                     sPLS_R_ca['canonical_variates_2'])
+np.testing.assert_array_almost_equal(splsca.y_loadings_,
+                                     sPLS_R_ca['canonical_mat.e'])
+np.testing.assert_array_almost_equal(splsca.y_weights_,
+                                     sPLS_R_ca['canonical_loadings_2'])
+
+
 
 
 
