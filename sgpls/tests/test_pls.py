@@ -188,21 +188,65 @@ np.testing.assert_array_almost_equal(splsca.y_weights_,
 
 # ***** FIXED! Zero-indexing accounted for in variable penalisation
 # (subtract 1 from index)
-# Regression: norm_y_weights set to True
-# Canonical: norm_y_weights set to False
+# norm_y_weights set to True for Regression and Canonical
 
-
-
-
-
-# Quick check if gPLS/sgPLS run
+# =============================================================================
+# vs. R package sgPLS - gPLS
+# =============================================================================
+# Regression mode
 gplsreg = gpls_.gPLSRegression(x_groups=x_groups, y_groups=y_groups,
                                x_block=x_block, y_block=y_block,
                                n_components=n_components)
 gplsreg.fit(X, Y)
 
 
+np.testing.assert_array_almost_equal(gplsreg.x_scores_,
+                                     gPLS_R_reg['regression_variates_1'])
+np.testing.assert_array_almost_equal(gplsreg.x_loadings_,
+                                     gPLS_R_reg['regression_mat.c'])
+np.testing.assert_array_almost_equal(gplsreg.x_weights_,
+                                     gPLS_R_reg['regression_loadings_1'])
+np.testing.assert_array_almost_equal(gplsreg.y_scores_,
+                                     gPLS_R_reg['regression_variates_2'])
+np.testing.assert_array_almost_equal(gplsreg.y_loadings_,
+                                     gPLS_R_reg['regression_mat.d'])
+np.testing.assert_array_almost_equal(gplsreg.y_weights_,
+                                     gPLS_R_reg['regression_loadings_2'])
 
+
+# Canonical Mode
+gplsca = gpls_.gPLSCanonical(x_groups=x_groups, y_groups=y_groups,
+                             x_block=x_block, y_block=y_block,
+                             n_components=n_components)
+gplsca.fit(X, Y)
+
+
+np.testing.assert_array_almost_equal(gplsca.x_scores_,
+                                     gPLS_R_ca['canonical_variates_1'])
+np.testing.assert_array_almost_equal(gplsca.x_loadings_,
+                                     gPLS_R_ca['canonical_mat.c'])
+np.testing.assert_array_almost_equal(gplsca.x_weights_,
+                                     gPLS_R_ca['canonical_loadings_1'])
+np.testing.assert_array_almost_equal(gplsca.y_scores_,
+                                     gPLS_R_ca['canonical_variates_2'])
+np.testing.assert_array_almost_equal(gplsca.y_loadings_,
+                                     gPLS_R_ca['canonical_mat.e'])
+np.testing.assert_array_almost_equal(gplsca.y_weights_,
+                                     gPLS_R_ca['canonical_loadings_2'])
+
+# ***** FIXED! Zero-indexing accounted for in group penalisation
+# (subtract 1 from index)
+# Fixed incorrect reference
+# norm_y_weights set to True for Regression and Canonical
+# Group-thresholding editied to handle group-wise floating errors
+# Corrected R data (accidentally set scale to FALSE?)
+# Use .copy() when updating iterables to prevent overwriting arrays
+
+
+
+
+
+# Quick check if sgPLS runs
 sgplsreg = sgpls_.sgPLSRegression(x_groups=x_groups, y_groups=y_groups,
                                   x_block=x_block, y_block=y_block,
                                   alpha_x=alpha_x, alpha_y=alpha_y,

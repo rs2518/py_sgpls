@@ -44,7 +44,11 @@ def _soft_thresholding(y, lambda_k):
     Recursive formula which penalises the PLS weights. Derived from the
     LASSO penalisation of the objective function.
     """
-    return np.sign(y) * np.clip(np.abs(y) - lambda_k, a_min=0, a_max=None)
+    eps = np.finfo(float).eps ** 0.5
+    a = np.abs(y) - lambda_k
+    if a < eps:
+        a = 0
+    return np.sign(y) * np.clip(a, a_min=0, a_max=None)
 
 
 def _group_thresholding(y, lambda_k, penalty):
@@ -53,8 +57,11 @@ def _group_thresholding(y, lambda_k, penalty):
     Recursive formula which penalises groups of PLS weights (defined by the
     user). Derived from the group LASSO penalisation of the objective function.    
     """
-    return np.array(y) * np.clip(1 - (lambda_k / penalty),
-                                 a_min = 0, a_max = None)
+    eps = np.finfo(float).eps ** 0.5
+    a = 1 - (lambda_k / penalty)
+    if a < eps:
+        a = 0
+    return np.array(y) * np.clip(a, a_min = 0, a_max = None)
 
 
 def _lambda_quadratic(y, lambda_k, alpha):
@@ -180,8 +187,8 @@ def _gpls_inner_loop(X, Y, x_group, y_group, x_ind, y_ind,
     
     u = np.zeros_like(u_old)
     v = np.zeros_like(v_old)
-    k = len(x_ind) + 1
-    l = len(y_ind) + 1
+    k = len(x_ind) - 1
+    l = len(y_ind) - 1
     x_penalty = np.zeros(k)
     y_penalty = np.zeros(l)
     x_range = [range(x_ind[i], x_ind[i+1]) for i in range(k)]
@@ -199,7 +206,7 @@ def _gpls_inner_loop(X, Y, x_group, y_group, x_ind, y_ind,
         if x_group == 0:
             lambda_x = 0
         else:
-            lambda_x = sorted(np.absolute(x_penalty))[x_group]        
+            lambda_x = sorted(np.absolute(x_penalty))[x_group - 1]        
         # Groups of X variables are penalised using the group thresholding
         # function and the appropriate penalty calculated from the magnitude
         # of the projections for each group.
@@ -208,6 +215,8 @@ def _gpls_inner_loop(X, Y, x_group, y_group, x_ind, y_ind,
             arr = np.array(M_v[x_range[group]])
             u[x_range[group]] = _group_thresholding(
                     arr, lambda_x, x_penalty[group])
+        if np.dot(u.T, u) < eps:
+            u += eps
         # 1.5 Normalise u
         u /= np.sqrt(np.dot(u.T, u)) + eps
         
@@ -222,7 +231,7 @@ def _gpls_inner_loop(X, Y, x_group, y_group, x_ind, y_ind,
         if y_group == 0:
             lambda_y = 0
         else:
-            lambda_y = sorted(np.absolute(y_penalty))[y_group]        
+            lambda_y = sorted(np.absolute(y_penalty))[y_group - 1]        
         # 2.4 Update v : the Y weights
         for group in range(l):
             arr = np.array(M_u[y_range[group]])
@@ -230,7 +239,7 @@ def _gpls_inner_loop(X, Y, x_group, y_group, x_ind, y_ind,
                     arr, lambda_y, y_penalty[group])
         # 2.5 Normalise u
         if norm_y_weights:
-            v /= np.sqrt(np.dot(v.T, v)) + eps        
+            v /= np.sqrt(np.dot(v.T, v)) + eps     
         
         u_diff = u - u_old
         v_diff = v - v_old
@@ -265,8 +274,8 @@ def _sgpls_inner_loop(X, Y, x_group, y_group, x_ind, y_ind,
     
     u = np.zeros_like(u_old)
     v = np.zeros_like(v_old)
-    k = len(x_ind) + 1
-    l = len(y_ind) + 1
+    k = len(x_ind) - 1
+    l = len(y_ind) - 1
     x_penalty = np.zeros(k)
     y_penalty = np.zeros(l)
     x_range = [range(x_ind[i], x_ind[i+1]) for i in range(k)]
@@ -288,16 +297,18 @@ def _sgpls_inner_loop(X, Y, x_group, y_group, x_ind, y_ind,
         if x_group == 0:
             lambda_x = sorted(np.absolute(x_penalty))[0] - 1
         else:
-            lambda_x = sorted(np.absolute(x_penalty))[x_group]        
+            lambda_x = sorted(np.absolute(x_penalty))[x_group - 1]        
         # Lambda must exceed a particular threshold for penalisation.
-        # Therefore, it is sufficient to subtract 1 to break the condition and
-        # apply penalisation.
+        # Therefore, it is sufficient to subtract 1 to break the condition for
+        # applyling penalisation.
         # See [Benoit Liquet 2015], criterion (10) and criterion (16).
         # 1.4 Update u : the X weights
         for group in range(k):
             arr = np.array(M_v[x_range[group]])
             u[x_range[group]] = _sparse_group_thresholding(
-                    arr, lambda_x, x_penalty[group], alpha_x)     
+                    arr, lambda_x, x_penalty[group], alpha_x)
+        if np.dot(u.T, u) < eps:
+            u += eps
         # 1.5 Normalise u
         u /= np.sqrt(np.dot(u.T, u)) + eps
         
@@ -316,7 +327,7 @@ def _sgpls_inner_loop(X, Y, x_group, y_group, x_ind, y_ind,
         if y_group == 0:
             lambda_y = sorted(np.absolute(y_penalty))[0] - 1
         else:
-            lambda_y = sorted(np.absolute(y_penalty))[y_group]       
+            lambda_y = sorted(np.absolute(y_penalty))[y_group - 1]       
         # 2.4 Update v : the Y weights
         for group in range(l):
             arr = np.array(M_u[y_range[group]])
@@ -502,7 +513,7 @@ def pls_blocks(array, max_entry, min_entry=0, warn=False):
         Returns array with endpoints inserted onto both sides of
         array_converted. If array is None, np.array([min_entry, max_entry])
         is returned.
-    """
+    """ 
     if array is None:
         array_converted = array
         ind = np.zeros(0)

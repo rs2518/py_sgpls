@@ -265,7 +265,7 @@ class gPLSRegression(_gPLS):
         super().__init__(
             x_block, x_groups, y_block=y_block, y_groups=y_groups,
             n_components=n_components, scale=scale,
-            deflation_mode="regression", norm_y_weights=False,
+            deflation_mode="regression", norm_y_weights=True,
             max_iter=max_iter, tol=tol, copy=copy)
 
 

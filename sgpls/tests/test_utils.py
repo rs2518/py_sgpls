@@ -10,7 +10,6 @@ sys.path.append(path)
 # =============================================================================
 # import pytest
 
-# import pandas as pd
 import numpy as np
 
 from sgpls.utils import sparsity_conversion
@@ -18,10 +17,6 @@ from sgpls.utils import _soft_thresholding
 from sgpls.utils import _group_thresholding
 from sgpls.utils import _lambda_quadratic
 from sgpls.utils import _sparse_group_thresholding
-# from sgpls.utils import _nipals_twoblocks_inner_loop
-# from sgpls.utils import _spls_inner_loop
-# from sgpls.utils import _gpls_inner_loop
-# from sgpls.utils import _sgpls_inner_loop
 from sgpls.utils import _check_1d
 from sgpls.utils import _validate_block
 from sgpls.utils import pls_array
@@ -189,12 +184,3 @@ def test_pls_blocks():
     
     np.testing.assert_array_equal(block_none, None)
     np.testing.assert_array_equal(ind_none, true_ind_none)
-    
-    
-####
-## NOTE: Compare with respective R functions
-# def test_nipals_twoblocks_inner_loop():    # nipals test not necessary
-# def test_spls_inner_loop():
-# def test_gpls_inner_loop():
-# def test_sgpls_inner_loop():
-####

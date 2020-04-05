@@ -62,6 +62,13 @@ alpha.x <- alpha.y <- c(0.95, 0.95)    # sgPLS sparsity mixin
 modes <- c("regression", "canonical")
 scale <- TRUE
 
+path <- "~/Desktop/py_sgpls/data/dataset1/"
+ifelse(dir.exists(path), "", dir.create(path, showWarnings=FALSE))
+
+model_list <- c("sgPLS_spls", "sgPLS_gpls", "sgPLS_sgpls")
+skip <- c("call", "X", "Y", "ncomp", "mode", "keepX", "keepY", "names", "tol", "max.iter",
+          "iter", "ind.block.x", "ind.block.y", "alpha.x", "alpha.y", "upper.lambda")
+
 for (i in length(modes)){
   
   #### sPLS model
@@ -93,13 +100,6 @@ for (i in length(modes)){
   ##### Save model elements into individual files. Create new directory if one doesn't already exist
   # NOTE: R models cannot be directly saved and loaded into Python. Python packages 'rpy2' and 'pyreadr' exist
   # to try and fix this however, pyreadr cannot parse the R object and rpy2 does not work on new versions of Python
-  path <- "~/Desktop/py_sgpls/data/dataset1/"
-  ifelse(dir.exists(path), "", dir.create(path, showWarnings=FALSE))
-  
-  model_list <- c("sgPLS_spls", "sgPLS_gpls", "sgPLS_sgpls")
-  skip <- c("call", "X", "Y", "ncomp", "mode", "keepX", "keepY", "names", "tol", "max.iter",
-            "iter", "ind.block.x", "ind.block.y", "alpha.x", "alpha.y", "upper.lambda")
-  
   for (model in model_list){
     ifelse(dir.exists(paste0(path, model)), "", dir.create(paste0(path, model), showWarnings=FALSE))
     for (item in names(get(model))){
@@ -171,9 +171,10 @@ sd_times <- as.data.frame(apply(run_times, MARGIN=1, FUN = sd))     # NOTE: Drop
 
 
 
-# #### Compare to spls_inner_loop
+# #### Compare to gpls_inner_loop
 
-test_model <- sPLS(X, Y, ncomp = ncomp, mode = "canonical", keepX = keepX, keepY = keepY, scale = TRUE)
+test_model <- gPLS(X, Y, ncomp = ncomp, mode = "canonical", keepX = keepX.groups, keepY = keepY.groups,
+                   ind.block.x = ind.block.x , ind.block.y = ind.block.y, scale = TRUE)
 View(test_model[["loadings"]][["X"]])    # x_weights
 View(test_model[["loadings"]][["Y"]])    # y_weights
 View(test_model[["variates"]][["X"]])    # x_scores
@@ -181,3 +182,22 @@ View(test_model[["variates"]][["Y"]])    # y_scores
 View(test_model[["mat.c"]])    # x_loadings
 # View(test_model[["mat.d"]])    # y_loadings
 View(test_model[["mat.e"]])    # y_loadings
+
+
+test_dir <- "~/Desktop/py_sgpls/data/dataset1/"
+data <- c("loadings","variates","mat.c","mat.d", "mat.e")
+
+for (item in names(test_model)){
+  if ((item %in% data)){
+    if (is.list(test_model[[item]])){
+      for (index in 1:length(test_model[[item]])){
+        write.csv(as.data.frame(test_model[[item]][index]),
+                  file=paste0(test_dir, "test", "_", item, "_", index, ".csv"))}}
+    else{
+      write.csv(as.data.frame(test_model[[item]]),
+                file=paste0(test_dir, "test", "_", item, ".csv"))}}} 
+
+
+
+# # Save array
+# write.csv(as.data.frame(*INSERT ARRAY HERE*), file = paste0(test_dir, "arr", ".csv"))
