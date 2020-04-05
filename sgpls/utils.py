@@ -46,9 +46,8 @@ def _soft_thresholding(y, lambda_k):
     """
     eps = np.finfo(float).eps ** 0.5
     a = np.abs(y) - lambda_k
-    if a < eps:
-        a = 0
-    return np.sign(y) * np.clip(a, a_min=0, a_max=None)
+    a[a < eps] = 0
+    return np.sign(y) * a
 
 
 def _group_thresholding(y, lambda_k, penalty):
@@ -61,7 +60,7 @@ def _group_thresholding(y, lambda_k, penalty):
     a = 1 - (lambda_k / penalty)
     if a < eps:
         a = 0
-    return np.array(y) * np.clip(a, a_min = 0, a_max = None)
+    return np.array(y) * a
 
 
 def _lambda_quadratic(y, lambda_k, alpha):
@@ -168,8 +167,8 @@ def _spls_inner_loop(X, Y, x_var, y_var, max_iter=500, tol=1e-06,
             warnings.warn('Maximum number of iterations reached',
                           ConvergenceWarning)
             break
-        u_old = u
-        v_old = v
+        u_old = u.copy()
+        v_old = v.copy()
         ite += 1
     return u, v, ite
 
@@ -249,8 +248,8 @@ def _gpls_inner_loop(X, Y, x_group, y_group, x_ind, y_ind,
             warnings.warn('Maximum number of iterations reached',
                           ConvergenceWarning)
             break
-        u_old = u
-        v_old = v
+        u_old = u.copy()
+        v_old = v.copy()
         ite += 1
     return u, v, ite
 
@@ -345,8 +344,8 @@ def _sgpls_inner_loop(X, Y, x_group, y_group, x_ind, y_ind,
             warnings.warn('Maximum number of iterations reached',
                           ConvergenceWarning)
             break
-        u_old = u
-        v_old = v
+        u_old = u.copy()
+        v_old = v.copy()
         ite += 1
     return u, v, ite
 
