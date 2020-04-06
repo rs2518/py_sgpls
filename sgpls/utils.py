@@ -90,7 +90,7 @@ def _sparse_group_thresholding(y, lambda_k, penalty, alpha):
         return c/2 * g
 
 
-def _pls_inner_loop(X, Y, y_eps, algorithm="nipals", max_iter=500,
+def _pls_inner_loop(X, Y, algorithm="nipals", max_iter=500,
                     tol=1e-06, norm_y_weights=False):
     """Inner loop for the tuning of the PLS algorithm.
     
@@ -102,6 +102,7 @@ def _pls_inner_loop(X, Y, y_eps, algorithm="nipals", max_iter=500,
     """
     if algorithm == "nipals":
         # Replace columns that are all close to zero with zeros
+        y_eps = np.finfo(Y.dtype).eps
         Y_mask = np.all(np.abs(Y) < 10 * y_eps, axis=0)
         Y[:, Y_mask] = 0.0
         # NIPALS algorithm

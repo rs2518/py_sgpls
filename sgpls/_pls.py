@@ -240,10 +240,6 @@ class _PLS(TransformerMixin, RegressorMixin, MultiOutputMixin, BaseEstimator,
         self.y_loadings_ = np.zeros((q, self.n_components))
         self.n_iter_ = []
         
-        # Threshold for values in Y which are zeroed out in NIPALS algorithm
-        if self.model == "pls":
-            y_eps = np.finfo(Yk.dtype).eps
-        
         # Outer loop, over components            
         for k in range(self.n_components):
             if np.all(np.dot(Yk.T, Yk) < np.finfo(np.double).eps):
@@ -255,7 +251,7 @@ class _PLS(TransformerMixin, RegressorMixin, MultiOutputMixin, BaseEstimator,
             if self.model == "pls":
                 x_weights, y_weights, n_iter = \
                     _pls_inner_loop(
-                            X=Xk, Y=Yk, y_eps=y_eps,
+                            X=Xk, Y=Yk,
                             algorithm=self.algorithm,
                             max_iter=self.max_iter, tol=self.tol,
                             norm_y_weights=self.norm_y_weights)                                    
