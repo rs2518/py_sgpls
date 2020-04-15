@@ -63,7 +63,7 @@ def _group_thresholding(y, lambda_k, penalty):
     return np.array(y) * a
 
 
-def _lambda_quadratic(y, lambda_k, alpha):
+def _lambda_quadratic(lambda_k, y, alpha):
     """Lambda quadratic for sgPLS.
     
     Quadratic equation with respect to lambda for given mixing parameter
@@ -82,12 +82,22 @@ def _sparse_group_thresholding(y, lambda_k, penalty, alpha):
     Derived from a combination of LASSO and group LASSO penalisation of the
     objective function.
     """
-    if penalty < lambda_k:
-        pass
+    if penalty <= lambda_k:
+        return np.zeros_like(y)
     else:
         g = _soft_thresholding(y, lambda_k * alpha / 2)
-        c = 1 - lambda_k * (1 - alpha) * np.sqrt(len(g))/np.dot(g.T, g)
-        return c/2 * g
+        
+        # Possible syntax error in R!! Weights contain small differences but
+        # the correct variables/groups are selected because the relative
+        # magnitudes are preserved.
+        
+        # R code version
+        c = 1 - lambda_k * (1 - alpha)/2 * np.sqrt(len(g)/np.dot(g.T, g))
+        return c * g
+        
+        # # Literature version
+        # c = 1 - lambda_k * (1 - alpha) * np.sqrt(len(g)/np.dot(g.T, g))
+        # return c/2 * g
 
 
 def _pls_inner_loop(X, Y, algorithm="nipals", max_iter=500,
@@ -258,8 +268,8 @@ def _gpls_inner_loop(X, Y, x_group, y_group, x_ind, y_ind,
 def _sgpls_inner_loop(X, Y, x_group, y_group, x_ind, y_ind,
                       alpha_x, alpha_y, max_iter=500,
                       tol=1e-06, norm_y_weights=True,
-                      lambda_tol=np.finfo(float).eps**0.25,
-                      max_lambda=1e+05, lambda_max_iter=1000):
+                      max_lambda=1e+05, lambda_max_iter=1000,
+                      lambda_tol=np.finfo(float).eps**0.25):
     """Inner loop for iterative tuning of sgPLS algorithm.
     
     Estimates PLS weights which solve the sparse group PLS objective function.
@@ -286,7 +296,7 @@ def _sgpls_inner_loop(X, Y, x_group, y_group, x_ind, y_ind,
         M_v = np.dot(M, v_old)
         # 1.2 Calculate contribution of X groups to M_v
         for group in range(k):
-            arr = np.array(M_v[x_range[group]])
+            arr = M_v[x_range[group]]
             x_penalty[group] = brentq(
                     _lambda_quadratic,
                     a=0, b=max_lambda,
@@ -304,7 +314,7 @@ def _sgpls_inner_loop(X, Y, x_group, y_group, x_ind, y_ind,
         # See [Benoit Liquet 2015], criterion (10) and criterion (16).
         # 1.4 Update u : the X weights
         for group in range(k):
-            arr = np.array(M_v[x_range[group]])
+            arr = M_v[x_range[group]]
             u[x_range[group]] = _sparse_group_thresholding(
                     arr, lambda_x, x_penalty[group], alpha_x)
         if np.dot(u.T, u) < eps:

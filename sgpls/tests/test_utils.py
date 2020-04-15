@@ -66,12 +66,12 @@ def test_group_thresholding():
 def test_lambda_quadratic():
     array = np.array([-0.3, 0.8, 0.9, 1.0, 0.4])
     lambdas = np.linspace(0,5,11)
-    lq = np.array([_lambda_quadratic(array, lam, 1/2) for lam in lambdas])
+    lq = np.array([_lambda_quadratic(lam, array, 1/2)
+                   for lam in lambdas]).ravel()
     
     # Compare to lambda.quadra() from sgPLS package internal functions
-    true_lq = np.array([2.700000, 1.615625, 0.062500, -1.965000,
-                        -4.500000, -7.565625, -11.162500, -15.296250,
-                        -20.000000, -25.312500, -31.250000])
+    true_lq = np.array([2.7, 1.615625, 0.0625, -1.965, -4.5, -7.565625,
+                        -11.1625, -15.29625, -20, -25.3125, -31.25])
     
     np.testing.assert_array_almost_equal(lq, true_lq, decimal=6)
     
@@ -80,7 +80,8 @@ def test_sparse_group_thresholding():
     array = np.array([7, 0, -5, -2])
     sgt = _sparse_group_thresholding(array, 16, 1e+06, 1/2)
     
-    true_sgt = np.array([-0.9, 0, 0.3, 0])
+    true_sgt = np.array([-4.589466384, 0, 1.529822128, 0]) # R version
+    # true_sgt = np.array([-0.9, 0, 0.3, 0]) # Literature version
     
     np.testing.assert_array_almost_equal(sgt, true_sgt, decimal=6)
     

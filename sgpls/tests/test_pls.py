@@ -96,7 +96,6 @@ alpha_x = alpha_y = np.array([0.95, 0.95])
 # =============================================================================
 # vs. sklearn - PLS
 # =============================================================================
-
 # Testing the PLS algorithm against sklearn alone should suffice since
 # sklearn's has been thoroughly vetted and the py_sgpls implementation is
 # taken from sklearn.
@@ -142,7 +141,7 @@ np.testing.assert_array_almost_equal(plsca.y_loadings_,
 np.testing.assert_array_almost_equal(plsca.y_weights_,
                                      plsca_sklearn.y_weights_)
 
-# ***** SUCCESS! PLS models seem to work
+
 
 # =============================================================================
 # vs. R package sgPLS - sPLS
@@ -186,9 +185,7 @@ np.testing.assert_array_almost_equal(splsca.y_loadings_,
 np.testing.assert_array_almost_equal(splsca.y_weights_,
                                      sPLS_R_ca['canonical_loadings_2'])
 
-# ***** FIXED! Zero-indexing accounted for in variable penalisation
-# (subtract 1 from index)
-# norm_y_weights set to True for Regression and Canonical
+
 
 # =============================================================================
 # vs. R package sgPLS - gPLS
@@ -234,21 +231,67 @@ np.testing.assert_array_almost_equal(gplsca.y_loadings_,
 np.testing.assert_array_almost_equal(gplsca.y_weights_,
                                      gPLS_R_ca['canonical_loadings_2'])
 
-# ***** FIXED! Zero-indexing accounted for in group penalisation
-# (subtract 1 from index)
-# Fixed incorrect reference
-# norm_y_weights set to True for Regression and Canonical
-# Group-thresholding editied to handle group-wise floating errors
-# Corrected R data (accidentally set scale to FALSE?)
-# Use .copy() when updating iterables to prevent overwriting arrays
 
 
+# =============================================================================
+# vs. R package sgPLS - sgPLS
+# =============================================================================
+# NOTES: Numerical errors will occur in the numerical methods used in the
+# sgPLS algorithm. To ensure that the R and Python implementations agree up to
+# a sufficiently high precision, the R code has been temporarily overwritten
+# so that its internal functions achieve great enough accuracy to be
+# comparable to Python (which appears to achieve higher accuracy than R).
+#
+# Also, an inconsistency appears between the literature and original R code
+# which affects the _sparse_group_thresholding function. Both versions have
+# been added for comparison
 
-
-
-# Quick check if sgPLS runs
+# Regression mode
 sgplsreg = sgpls_.sgPLSRegression(x_groups=x_groups, y_groups=y_groups,
                                   x_block=x_block, y_block=y_block,
                                   alpha_x=alpha_x, alpha_y=alpha_y,
                                   n_components=n_components)
 sgplsreg.fit(X, Y)
+
+
+np.testing.assert_array_almost_equal(sgplsreg.x_scores_,
+                                     sgPLS_R_reg['regression_variates_1'])
+np.testing.assert_array_almost_equal(sgplsreg.x_loadings_,
+                                     sgPLS_R_reg['regression_mat.c'])
+np.testing.assert_array_almost_equal(sgplsreg.x_weights_,
+                                     sgPLS_R_reg['regression_loadings_1'])
+np.testing.assert_array_almost_equal(sgplsreg.y_scores_,
+                                     sgPLS_R_reg['regression_variates_2'])
+np.testing.assert_array_almost_equal(sgplsreg.y_loadings_,
+                                     sgPLS_R_reg['regression_mat.d'])
+np.testing.assert_array_almost_equal(sgplsreg.y_weights_,
+                                     sgPLS_R_reg['regression_loadings_2'])
+
+
+# Canonical Mode
+sgplsca = sgpls_.sgPLSCanonical(x_groups=x_groups, y_groups=y_groups,
+                                x_block=x_block, y_block=y_block,
+                                alpha_x=alpha_x, alpha_y=alpha_y,
+                                n_components=n_components)
+sgplsca.fit(X, Y)
+
+
+np.testing.assert_array_almost_equal(sgplsca.x_scores_,
+                                     sgPLS_R_ca['canonical_variates_1'])
+np.testing.assert_array_almost_equal(sgplsca.x_loadings_,
+                                     sgPLS_R_ca['canonical_mat.c'])
+np.testing.assert_array_almost_equal(sgplsca.x_weights_,
+                                     sgPLS_R_ca['canonical_loadings_1'])
+np.testing.assert_array_almost_equal(sgplsca.y_scores_,
+                                     sgPLS_R_ca['canonical_variates_2'])
+np.testing.assert_array_almost_equal(sgplsca.y_loadings_,
+                                     sgPLS_R_ca['canonical_mat.e'])
+np.testing.assert_array_almost_equal(sgplsca.y_weights_,
+                                     sgPLS_R_ca['canonical_loadings_2'])
+
+# ***** FIXED!
+# norm_y_weights set to True for Regression and Canonical
+# Use .copy() when updating iterables to prevent overwriting arrays
+# Re-position arguments for _lambda_quadratic for brentq to work
+# Run R's uniroot with smaller tolerance to minimise numerical differences
+# with Python's brentq

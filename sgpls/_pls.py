@@ -279,9 +279,9 @@ class _PLS(TransformerMixin, RegressorMixin, MultiOutputMixin, BaseEstimator,
                             alpha_x=self.alpha_x[k], alpha_y=self.alpha_y[k],
                             max_iter=self.max_iter, tol=self.tol,
                             norm_y_weights=self.norm_y_weights,
-                            lambda_tol=self.lambda_tol,
                             max_lambda=self.max_lambda,
-                            lambda_max_iter=self.lambda_max_iter)
+                            lambda_max_iter=self.lambda_max_iter,
+                            lambda_tol=self.lambda_tol)
             
             if n_iter is not None:
                 self.n_iter_.append(n_iter)            

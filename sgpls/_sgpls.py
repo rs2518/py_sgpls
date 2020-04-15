@@ -319,10 +319,9 @@ class sgPLSRegression(_sgPLS):
                          y_block=y_block, y_groups=y_groups, alpha_y=alpha_y,
                          n_components=n_components, scale=scale,
                          deflation_mode="regression", norm_y_weights=True,
-                         max_iter=max_iter, tol=tol, lambda_tol=lambda_tol,
-                         max_lambda=max_lambda,
+                         max_iter=max_iter, tol=tol, max_lambda=max_lambda,
                          lambda_max_iter=lambda_max_iter,
-                         copy=copy)
+                         lambda_tol=lambda_tol, copy=copy)
 
 
 class sgPLSCanonical(_sgPLS):
@@ -472,7 +471,6 @@ class sgPLSCanonical(_sgPLS):
                          y_block=y_block, y_groups=y_groups, alpha_y=alpha_y,
                          n_components=n_components, scale=scale,
                          deflation_mode="canonical", norm_y_weights=True,
-                         max_iter=max_iter, tol=tol, lambda_tol=lambda_tol,
-                         max_lambda=max_lambda,
+                         max_iter=max_iter, tol=tol, max_lambda=max_lambda,
                          lambda_max_iter=lambda_max_iter,
-                         copy=copy)
+                         lambda_tol=lambda_tol, copy=copy)
