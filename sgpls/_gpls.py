@@ -136,9 +136,15 @@ class _gPLS(_PLS):
                          norm_y_weights=norm_y_weights,
                          max_iter=max_iter, tol=tol, copy=copy)        
         self.x_block = _check_1d(x_block)
-        self.y_block = _check_1d(y_block)
         self.x_groups = _check_1d(x_groups)
-        self.y_groups = _check_1d(y_groups)
+        if y_block is None:
+            self.y_block = y_block
+        else:
+            self.y_block = _check_1d(y_block)
+        if y_groups is None:
+            self.y_groups = y_groups
+        else:
+            self.y_groups = _check_1d(y_groups)
         
         
 class gPLSRegression(_gPLS):

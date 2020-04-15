@@ -183,47 +183,56 @@ class _PLS(TransformerMixin, RegressorMixin, MultiOutputMixin, BaseEstimator,
         if self.algorithm == "NA" and self.model == "pls":
             raise ValueError("Incompatible configuration: pls model must be "
                              "implemented with either 'svd' or 'nipals'")
-        if self.algorithm != "NA" and self.model != "pls":
-            raise ValueError("Incompatible configuration: %s model cannot "
-                             "be implemented with %s. Set algorithm to 'NA'"
-                             % (self.model, self.algorithm))
+        if self.model in ("spls", "gpls", "sgpls") and self.algorithm != "NA":
+            raise ValueError("Incompatible configuration: Invalid algorithm "
+                             "%s for %s model"
+                             % (self.algorithm, self.model))
             
         # Validate sparsity parameters (if any)        
         if self.model == "spls":
             self.x_vars = pls_array(
                     array=self.x_vars, min_length=self.n_components,
                     max_length=self.n_components, min_entry=0,
-                    max_entry=p)                
-            self.y_vars = pls_array(
-                    array=self.y_vars, min_length=self.n_components,
-                    max_length=self.n_components, min_entry=0,
-                    max_entry=q)
+                    max_entry=p)
+            if self.y_vars is not None:
+                self.y_vars = pls_array(
+                        array=self.y_vars, min_length=self.n_components,
+                        max_length=self.n_components, min_entry=0,
+                        max_entry=q)
+            
             x_sparsity = sparsity_conversion(self.x_vars, p)
             y_sparsity = sparsity_conversion(self.y_vars, q)
         
         elif self.model in ("gpls", "sgpls"):
-            self.x_block, x_ind = pls_blocks(self.x_block, p)
-            self.y_block, y_ind = pls_blocks(self.y_block, q)
+            self.x_block = pls_blocks(self.x_block, p)
             self.x_groups = pls_array(
                     array=self.x_groups, min_length=self.n_components,
                     max_length=self.n_components, min_entry=0,
-                    max_entry=len(x_ind)-1)
-            self.y_groups = pls_array(
-                    array=self.y_groups, min_length=self.n_components,
-                    max_length=self.n_components, min_entry=0,
-                    max_entry=len(y_ind)-1)
-            x_sparsity = sparsity_conversion(self.x_groups, len(x_ind)-1)
-            y_sparsity = sparsity_conversion(self.y_groups, len(y_ind)-1)
+                    max_entry=len(self.x_block)+1)
+            
+            if self.y_block is not None:
+                self.y_block = pls_blocks(self.y_block, q)
+            if self.y_groups is not None:
+                self.y_groups = pls_array(
+                        array=self.y_groups, min_length=self.n_components,
+                        max_length=self.n_components, min_entry=0,
+                        max_entry=len(self.y_block)+1)
+            
+            x_sparsity = sparsity_conversion(
+                    self.x_groups, len(self.x_block)+1)
+            y_sparsity = sparsity_conversion(
+                    self.y_groups, len(self.y_block)+1)
         
             if self.model == "sgpls":
                 self.alpha_x = pls_array(
                         array=self.alpha_x, min_length=self.n_components,
                         max_length=self.n_components, min_entry=0,
                         max_entry=1)
-                self.alpha_y = pls_array(
-                        array=self.alpha_y, min_length=self.n_components,
-                        max_length=self.n_components, min_entry=0,
-                        max_entry=1)
+                if self.alpha_y is not None:
+                    self.alpha_y = pls_array(
+                            array=self.alpha_y, min_length=self.n_components,
+                            max_length=self.n_components, min_entry=0,
+                            max_entry=1)
                 
         # Scale (in place)
         X, Y, self.x_mean_, self.y_mean_, self.x_std_, self.y_std_ = (
@@ -267,7 +276,7 @@ class _PLS(TransformerMixin, RegressorMixin, MultiOutputMixin, BaseEstimator,
                     _gpls_inner_loop(
                             X=Xk, Y=Yk,
                             x_group=x_sparsity[k], y_group=y_sparsity[k],
-                            x_ind=x_ind, y_ind=y_ind,
+                            x_block=self.x_block, y_block=self.y_block,
                             max_iter=self.max_iter, tol=self.tol,
                             norm_y_weights=self.norm_y_weights)
             elif self.model == "sgpls":
@@ -275,7 +284,7 @@ class _PLS(TransformerMixin, RegressorMixin, MultiOutputMixin, BaseEstimator,
                     _sgpls_inner_loop(
                             X=Xk, Y=Yk,
                             x_group=x_sparsity[k], y_group=y_sparsity[k],
-                            x_ind=x_ind, y_ind=y_ind,
+                            x_block=self.x_block, y_block=self.y_block,
                             alpha_x=self.alpha_x[k], alpha_y=self.alpha_y[k],
                             max_iter=self.max_iter, tol=self.tol,
                             norm_y_weights=self.norm_y_weights,

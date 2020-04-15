@@ -73,7 +73,7 @@ def test_lambda_quadratic():
     true_lq = np.array([2.7, 1.615625, 0.0625, -1.965, -4.5, -7.565625,
                         -11.1625, -15.29625, -20, -25.3125, -31.25])
     
-    np.testing.assert_array_almost_equal(lq, true_lq, decimal=6)
+    np.testing.assert_array_almost_equal(lq, true_lq)
     
     
 def test_sparse_group_thresholding():
@@ -83,7 +83,7 @@ def test_sparse_group_thresholding():
     true_sgt = np.array([-4.589466384, 0, 1.529822128, 0]) # R version
     # true_sgt = np.array([-0.9, 0, 0.3, 0]) # Literature version
     
-    np.testing.assert_array_almost_equal(sgt, true_sgt, decimal=6)
+    np.testing.assert_array_almost_equal(sgt, true_sgt)
     
     
 def test_check_1d():    
@@ -104,9 +104,6 @@ def test_check_1d():
     one_d_c = np.zeros((1, 5))
     np.testing.assert_array_equal(one_d_a, _check_1d(one_d_b))
     np.testing.assert_array_equal(one_d_a, _check_1d(one_d_c))
-    
-    # Check None case
-    np.testing.assert_array_equal(None, _check_1d(None))
     
     
 def test_validate_block():
@@ -133,22 +130,19 @@ def test_pls_array():
                                   pls_array(a, max_length=6, min_length=6,
                                             max_entry=5, min_entry=0))
     
-    # Case 3: valid array, None case
-    np.testing.assert_array_equal(None, pls_array(None))
-    
-    # Case 4: entries < min_entry. Raises ValueError
+    # Case 3: entries < min_entry. Raises ValueError
     b = np.array([-2, 4, 0, 3, 1, 5])
     np.testing.assert_raises(ValueError, pls_array, b, 6, 0, 5, 0)
     
-    # Case 5: entries > max_entry. Raises ValueError
+    # Case 4: entries > max_entry. Raises ValueError
     c = np.array([100, 4, 0, 3, 1, 5])
     np.testing.assert_raises(ValueError, pls_array, c, 6, 0, 5, 0)
     
-    # Case 6: length < min_length. Raises ValueError
+    # Case 5: length < min_length. Raises ValueError
     d = np.array([2, 4])
     np.testing.assert_raises(ValueError, pls_array, d, 6, 3, 5, 0)
     
-    # Case 7: length > max_length. Raises ValueError
+    # Case 6: length > max_length. Raises ValueError
     e = np.array([2, 4, 0, 3, 1, 5, 4, 3, 2])
     np.testing.assert_raises(ValueError, pls_array, e, 6, 3, 5, 0)
     
@@ -159,29 +153,19 @@ def test_pls_blocks():
     c = np.array([0, 3, 5, 8, 9])
     
     true_block = np.array([3, 5, 8, 9])
-    true_ind = np.array([0, 3, 5, 8, 9, 15])
     
     # Check results
-    block_orig, ind_orig = pls_blocks(true_block, max_entry=15)
-    block_a, ind_a = pls_blocks(a, max_entry=15)
-    block_b, ind_b = pls_blocks(b, max_entry=15)
-    block_c, ind_c = pls_blocks(c, max_entry=15)
+    block_orig = pls_blocks(true_block, max_entry=15)
+    block_a = pls_blocks(a, max_entry=15)
+    block_b = pls_blocks(b, max_entry=15)
+    block_c = pls_blocks(c, max_entry=15)
     
+    np.testing.assert_array_equal(block_orig, true_block)    # No change
     np.testing.assert_array_equal(block_a, true_block)
     np.testing.assert_array_equal(block_b, true_block)    
     np.testing.assert_array_equal(block_c, true_block)
-    np.testing.assert_array_equal(ind_a, true_ind)
-    np.testing.assert_array_equal(ind_b, true_ind)
-    np.testing.assert_array_equal(ind_c, true_ind)
-    
+
     # Check that UserWarning is raised
     np.testing.assert_warns(UserWarning, pls_blocks, a, 15, 0, True)
     np.testing.assert_warns(UserWarning, pls_blocks, b, 15, 0, True)
     np.testing.assert_warns(UserWarning, pls_blocks, c, 15, 0, True)
-    
-    # Test None
-    true_ind_none = np.array([0, 15])
-    block_none, ind_none = pls_blocks(None, max_entry=15)
-    
-    np.testing.assert_array_equal(block_none, None)
-    np.testing.assert_array_equal(ind_none, true_ind_none)

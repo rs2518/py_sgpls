@@ -109,7 +109,10 @@ class _sPLS(_PLS):
                          norm_y_weights=norm_y_weights,
                          max_iter=max_iter, tol=tol, copy=copy)
         self.x_vars = _check_1d(x_vars)
-        self.y_vars = _check_1d(y_vars)
+        if y_vars is None:
+            self.y_vars = y_vars
+        else:
+            self.y_vars = _check_1d(y_vars)
 
 
 class sPLSRegression(_sPLS):

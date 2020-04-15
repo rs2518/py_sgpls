@@ -184,7 +184,7 @@ def _spls_inner_loop(X, Y, x_var, y_var, max_iter=500, tol=1e-06,
     return u, v, ite
 
 
-def _gpls_inner_loop(X, Y, x_group, y_group, x_ind, y_ind,
+def _gpls_inner_loop(X, Y, x_group, y_group, x_block, y_block,
                      max_iter=500, tol=1e-06, norm_y_weights=True):
     """Inner loop for iterative tuning of gPLS algorithm.
     
@@ -194,13 +194,19 @@ def _gpls_inner_loop(X, Y, x_group, y_group, x_ind, y_ind,
     u_old, v_old, M = svd_cross_product(X, Y, return_matrix=True)
     ite = 1
     eps = np.finfo(X.dtype).eps
+    k = len(x_block) + 1
+    l = len(y_block) + 1
     
     u = np.zeros_like(u_old)
     v = np.zeros_like(v_old)
-    k = len(x_ind) - 1
-    l = len(y_ind) - 1
     x_penalty = np.zeros(k)
     y_penalty = np.zeros(l)
+    
+    x_ind = np.insert(x_block, (0, len(x_block)), (0, X.shape[1]))
+    if y_block is None:
+        y_ind = np.array([0, Y.shape[1]])
+    else:
+        y_ind = np.insert(y_block, (0, len(y_block)), (0, Y.shape[1]))
     x_range = [range(x_ind[i], x_ind[i+1]) for i in range(k)]
     y_range = [range(y_ind[i], y_ind[i+1]) for i in range(l)]
     # Inner loop of gPLS
@@ -265,7 +271,7 @@ def _gpls_inner_loop(X, Y, x_group, y_group, x_ind, y_ind,
     return u, v, ite
 
 
-def _sgpls_inner_loop(X, Y, x_group, y_group, x_ind, y_ind,
+def _sgpls_inner_loop(X, Y, x_group, y_group, x_block, y_block,
                       alpha_x, alpha_y, max_iter=500,
                       tol=1e-06, norm_y_weights=True,
                       max_lambda=1e+05, lambda_max_iter=1000,
@@ -281,13 +287,19 @@ def _sgpls_inner_loop(X, Y, x_group, y_group, x_ind, y_ind,
     u_old, v_old, M = svd_cross_product(X, Y, return_matrix=True)
     ite = 1
     eps = np.finfo(X.dtype).eps
+    k = len(x_block) + 1
+    l = len(y_block) + 1
     
     u = np.zeros_like(u_old)
     v = np.zeros_like(v_old)
-    k = len(x_ind) - 1
-    l = len(y_ind) - 1
     x_penalty = np.zeros(k)
     y_penalty = np.zeros(l)
+    
+    x_ind = np.insert(x_block, (0, len(x_block)), (0, X.shape[1]))
+    if y_block is None:
+        y_ind = np.array([0, Y.shape[1]])
+    else:
+        y_ind = np.insert(y_block, (0, len(y_block)), (0, Y.shape[1]))
     x_range = [range(x_ind[i], x_ind[i+1]) for i in range(k)]
     y_range = [range(y_ind[i], y_ind[i+1]) for i in range(l)]
     # Inner loop of sgPLS
@@ -363,34 +375,29 @@ def _sgpls_inner_loop(X, Y, x_group, y_group, x_ind, y_ind,
 
 
 def _check_1d(array):
-    """Check if input is a non-empty 1D array. If array is None,
-    None is returned.
+    """Check if input is a non-empty 1D array
     
     Uses scikit-learn check_array for input validation. (See scikit_learn
     API reference for more information)
     
     NOTE: Empty numpy arrays are still 1D arrays but have a length of 0
     """
-    if array is None:
-        pass
-    
     # Input validation
+    array_converted = check_array(array, ensure_2d=False)
+    
+    # Check if 1D
+    if array_converted.ndim not in (1, 2):
+        raise ValueError("Shape of array is invalid: \n%s\n"
+                         "Array must be 1-dimensional"
+                         % array_converted)
+    elif array_converted.ndim == 2 and 1 not in array_converted.shape:
+        raise ValueError("Shape of array is invalid: \n%s\n"
+                         "Array must be 1-dimensional"
+                         % array_converted)
     else:
-        array_converted = check_array(array, ensure_2d=False)
-        
-        # Check if 1D
-        if array_converted.ndim not in (1, 2):
-            raise ValueError("Shape of array is invalid: \n%s\n"
-                             "Array must be 1-dimensional"
-                             % array_converted)
-        elif array_converted.ndim == 2 and 1 not in array_converted.shape:
-            raise ValueError("Shape of array is invalid: \n%s\n"
-                             "Array must be 1-dimensional"
-                             % array_converted)
-        else:
-            array_converted = array_converted.flatten() 
-        
-        return array_converted
+        array_converted = array_converted.flatten() 
+    
+    return array_converted
 
 
 def _validate_block(array):
@@ -450,37 +457,32 @@ def pls_array(array, max_length=None, min_length=1, max_entry=None,
     Returns
     -------
     array_converted : array
-        Validated array. ValueError raised if array is invalid. If array is
-        None, None is returned.
+        Validated array. ValueError raised if array is invalid.
     """
-    if array is None:
-        pass
+    # Check that length of array is between minimum and maximum length
+    if min_length is not None and len(array) < min_length:
+        raise ValueError("Length of array is invalid: \n%s\n" 
+                         "Length is %d but minimum length is %d"
+                         % (array, len(array),
+                            min_length))
+    if max_length is not None and len(array) > max_length:
+        raise ValueError("Length of array is invalid: \n%s\n" 
+                         "Length is %d but maximum length is %d"
+                         % (array, len(array),
+                            max_length))
     
-    else:
-        # Check that length of array is between minimum and maximum length
-        if min_length is not None and len(array) < min_length:
-            raise ValueError("Length of array is invalid: \n%s\n" 
-                             "Length is %d but minimum length is %d"
-                             % (array, len(array),
-                                min_length))
-        if max_length is not None and len(array) > max_length:
-            raise ValueError("Length of array is invalid: \n%s\n" 
-                             "Length is %d but maximum length is %d"
-                             % (array, len(array),
-                                max_length))
+    # Check that all entries are between minimum and maximum value
+    if min_entry is not None and any(array < min_entry):
+        raise ValueError("Invalid entry in array: \n%s\n"
+                         "Entries cannot be < %d"
+                         % (array, min_entry))
+    
+    if max_entry is not None and any(array > max_entry):
+        raise ValueError("Invalid entry in array: \n%s\n"
+                         "Entries cannot be > %d"
+                         % (array, max_entry))    
         
-        # Check that all entries are between minimum and maximum value
-        if min_entry is not None and any(array < min_entry):
-            raise ValueError("Invalid entry in array: \n%s\n"
-                             "Entries cannot be < %d"
-                             % (array, min_entry))
-        
-        if max_entry is not None and any(array > max_entry):
-            raise ValueError("Invalid entry in array: \n%s\n"
-                             "Entries cannot be > %d"
-                             % (array, max_entry))    
-            
-        return array
+    return array
 
 
 def pls_blocks(array, max_entry, min_entry=0, warn=False):
@@ -489,7 +491,6 @@ def pls_blocks(array, max_entry, min_entry=0, warn=False):
     Combination of _validate_block, _pls_array plus additional checks.
     If min entry or max_entry appears at the end points of the array, an
     optional warning is raised and the indices are removed from the array.
-    Another array with both endpoints added is also returned.
     
     Parameters
     ----------
@@ -516,49 +517,34 @@ def pls_blocks(array, max_entry, min_entry=0, warn=False):
     Returns
     -------
     array_converted : array
-        Validated array. ValueError raised if array is invalid. If array is
-        None, None is returned.
-        
-    ind : array
-        Returns array with endpoints inserted onto both sides of
-        array_converted. If array is None, np.array([min_entry, max_entry])
-        is returned.
-    """ 
-    if array is None:
-        array_converted = array
-        ind = np.zeros(0)
+        Validated array. ValueError raised if array is invalid.
+    """
+    # Input validation
+    array_converted = _validate_block(array)
     
-    else:
-        # Input validation
-        array_converted = _validate_block(array)
-        
-        array_converted = pls_array(array_converted,
-                                    max_length=max_entry,
-                                    min_length=1,
-                                    max_entry=max_entry,
-                                    min_entry=min_entry)
-        
-        # Remove 0 and/or max_entry. Create warning message
-        msg = 0
-        if array_converted[0] == min_entry:
-            array_converted = array_converted[1:]
-            msg += 1
-        
-        if array_converted[-1] == max_entry:
-            array_converted = array_converted[:-1]
-            msg += 2
-        ind = np.copy(array_converted)
-        
-        if warn and msg != 0:
-            warn_messages = {1: "Removed '%d' from blocking array"
-                             % min_entry,
-                             2: "Removed '%d' from blocking array"
-                             % max_entry,
-                             3: "Removed '%d' and '%d' from blocking array"
-                             % (min_entry, max_entry)}
-            warnings.warn(warn_messages[msg])
+    array_converted = pls_array(array_converted,
+                                max_length=max_entry,
+                                min_length=1,
+                                max_entry=max_entry,
+                                min_entry=min_entry)
     
-    # Insert endpoints
-    ind = np.insert(ind, (0, len(ind)), (min_entry, max_entry))
-            
-    return array_converted, ind
+    # Remove 0 and/or max_entry. Create warning message
+    msg = 0
+    if array_converted[0] == min_entry:
+        array_converted = array_converted[1:]
+        msg += 1
+    
+    if array_converted[-1] == max_entry:
+        array_converted = array_converted[:-1]
+        msg += 2
+    
+    if warn and msg != 0:
+        warn_messages = {1: "Removed '%d' from blocking array"
+                         % min_entry,
+                         2: "Removed '%d' from blocking array"
+                         % max_entry,
+                         3: "Removed '%d' and '%d' from blocking array"
+                         % (min_entry, max_entry)}
+        warnings.warn(warn_messages[msg])
+    
+    return array_converted
