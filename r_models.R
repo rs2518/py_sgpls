@@ -59,6 +59,81 @@ alpha.x <- alpha.y <- c(0.95, 0.95)    # sgPLS sparsity mixin
 #############################################################################################
 # sgPLS package - Compare results
 #############################################################################################
+
+# Overwrite internal sgPLS function with more stringent uniroot tolerance (because Python's has higher accuracy)
+new.step1.sgpls.sparsity <- function(X,Y,ind.block.x,ind.block.y,sparsity.x,sparsity.y,epsilon,iter.max,alpha.x,alpha.y,upper.lambda=upper.lambda, lambda.tol=10*.Machine$double.eps){
+  print("sgPLS successfully overwritten")
+  
+  n <- dim(X)[1]
+  Z <- t(X)%*%Y
+  svd.Z <- svd(Z,nu=1,nv=1)
+  
+  u.tild.old <- svd.Z$u
+  v.tild.old <- svd.Z$v
+  u.tild.previous <- v.tild.previous <- 0
+  iter <- 0
+  
+  ### Step c
+  #|(norm(v.tild.old-v.tild.previous)>epsilon)
+  while (((normv(u.tild.old-u.tild.previous)>epsilon) ) & (iter <iter.max))  {
+    vecZV <- Z%*%matrix(v.tild.old,ncol=1)
+    tab.ind <- c(0,ind.block.x,length(vecZV))
+    lamb.x <- NULL
+    lamb.max <- upper.lambda
+    for (i in 1:(length(ind.block.x)+1)){
+      ji <- tab.ind[i+1]-tab.ind[i]  
+      vecx <- vecZV[((tab.ind[i]+1):tab.ind[i+1])]
+      lamb.x <- c(lamb.x,uniroot(lambda.quadra,lower=0,upper=lamb.max,vec=vecx,alpha=alpha.x, tol=lambda.tol)$root)
+    }   
+    if(sparsity.x==0){lambda.x <- sort(lamb.x)[1]-1} else {
+      lambda.x <- sort(lamb.x)[sparsity.x]}
+    
+    ####block to zero
+    index.block.zero.x <- which(lamb.x<=lambda.x)
+    
+    
+    u.tild.new <- soft.thresholding.sparse.group(Z%*%matrix(v.tild.old,ncol=1),ind=ind.block.x,lambda=lambda.x,alpha=alpha.x,ind.block.zero=index.block.zero.x)
+    
+    u.tild.new <- u.tild.new/sqrt(sum(u.tild.new**2))
+    
+    if(sparsity.y==0) {lambda.y <- 0} else { 
+      vecZV <- t(Z)%*%matrix(u.tild.new,ncol=1)
+      tab.ind <- c(0,ind.block.y,length(vecZV))
+      lamb.y <- NULL
+      lamb.max <- 100000
+      res <- NULL
+      for (i in 1:(length(ind.block.y)+1)){
+        ji <- tab.ind[i+1]-tab.ind[i]  
+        vecx <- vecZV[((tab.ind[i]+1):tab.ind[i+1])]
+        lamb.y <- c(lamb.y,uniroot(lambda.quadra,lower=0,upper=lamb.max,vec=vecx,alpha=alpha.y, tol=lambda.tol)$root)
+      }
+      lambda.y <- sort(lamb.y)[sparsity.y]
+      index.block.zero.y <- which(lamb.y<=lambda.y)
+    }
+    
+    if(sparsity.y==0) {v.tild.new <- t(Z)%*%matrix(u.tild.new,ncol=1)} else {
+      v.tild.new <- soft.thresholding.sparse.group(t(Z)%*%matrix(u.tild.new,ncol=1),ind=ind.block.y,lambda=lambda.y,alpha=alpha.y,ind.block.zero=index.block.zero.y)
+    }
+    
+    v.tild.new <- v.tild.new/sqrt(sum(v.tild.new**2))
+    
+    u.tild.previous <- u.tild.old
+    v.tild.previous <- v.tild.old
+    
+    u.tild.old <- u.tild.new
+    v.tild.old <- v.tild.new
+    
+    iter <- iter +1
+  }  
+  res <- list(iter=iter, u.tild.new=u.tild.new,v.tild.new=v.tild.new) 
+  
+}
+assignInNamespace("step1.sparse.group.spls.sparsity", value=new.step1.sgpls.sparsity, ns="sgPLS")
+
+
+
+
+# Save regression and canonical model results
 modes <- c("regression", "canonical")
 scale <- TRUE
 
@@ -171,17 +246,17 @@ sd_times <- as.data.frame(apply(run_times, MARGIN=1, FUN = sd))     # NOTE: Drop
 
 
 
-# #### Compare to gpls_inner_loop
-
-test_model <- gPLS(X, Y, ncomp = ncomp, mode = "canonical", keepX = keepX.groups, keepY = keepY.groups,
-                   ind.block.x = ind.block.x , ind.block.y = ind.block.y, scale = TRUE)
+# #### Compare to sgpls_inner_loop
+test_model <- sgPLS(X, Y, ncomp = ncomp, mode = "regression", keepX = keepX.groups, keepY = keepY.groups,
+                    ind.block.x = ind.block.x , ind.block.y = ind.block.y,
+                    alpha.x = alpha.x, alpha.y = alpha.y, scale = TRUE)
 View(test_model[["loadings"]][["X"]])    # x_weights
 View(test_model[["loadings"]][["Y"]])    # y_weights
 View(test_model[["variates"]][["X"]])    # x_scores
 View(test_model[["variates"]][["Y"]])    # y_scores
 View(test_model[["mat.c"]])    # x_loadings
-# View(test_model[["mat.d"]])    # y_loadings
-View(test_model[["mat.e"]])    # y_loadings
+View(test_model[["mat.d"]])    # y_loadings
+# View(test_model[["mat.e"]])    # y_loadings
 
 
 test_dir <- "~/Desktop/py_sgpls/data/dataset1/"
