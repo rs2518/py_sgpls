@@ -255,12 +255,19 @@ def _gpls_inner_loop(X, Y, x_group, y_group, x_block, y_block,
                     arr, lambda_y, y_penalty[group])
         # 2.5 Normalise u
         if norm_y_weights:
-            v /= np.sqrt(np.dot(v.T, v)) + eps     
+            v /= np.sqrt(np.dot(v.T, v)) + eps
         
+        # # sklearn version
+        # u_diff = u - u_old
+        # v_diff = v - v_old
+        # if np.dot(u_diff.T, u_diff) < tol and np.dot(v_diff.T, v_diff) < tol:
+        #     break
+        
+        # R version
         u_diff = u - u_old
-        v_diff = v - v_old
-        if np.dot(u_diff.T, u_diff) < tol and np.dot(v_diff.T, v_diff) < tol:
+        if np.sqrt(np.dot(u_diff.T, u_diff)) < tol:
             break
+        
         if ite == max_iter:
             warnings.warn('Maximum number of iterations reached',
                           ConvergenceWarning)
@@ -357,12 +364,19 @@ def _sgpls_inner_loop(X, Y, x_group, y_group, x_block, y_block,
                     arr, lambda_y, y_penalty[group], alpha_y)      
         # 2.5 Normalise u
         if norm_y_weights:
-            v /= np.sqrt(np.dot(v.T, v)) + eps        
+            v /= np.sqrt(np.dot(v.T, v)) + eps
         
+        # # sklearn version
+        # u_diff = u - u_old
+        # v_diff = v - v_old
+        # if np.dot(u_diff.T, u_diff) < tol and np.dot(v_diff.T, v_diff) < tol:
+        #     break
+        
+        # R version
         u_diff = u - u_old
-        v_diff = v - v_old
-        if np.dot(u_diff.T, u_diff) < tol and np.dot(v_diff.T, v_diff) < tol:
+        if np.sqrt(np.dot(u_diff.T, u_diff)) < tol:
             break
+        
         if ite == max_iter:
             warnings.warn('Maximum number of iterations reached',
                           ConvergenceWarning)
