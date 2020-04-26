@@ -8,10 +8,10 @@ path = os.path.join(os.path.abspath('.'), directory)
 sys.path.append(path)
 # =============================================================================
 # =============================================================================
-# import pytest
-
 import numpy as np
 
+from numpy.testing import (assert_array_equal, assert_array_almost_equal,
+                           assert_raises, assert_warns)
 from sgpls.utils import sparsity_conversion
 from sgpls.utils import _soft_thresholding
 from sgpls.utils import _group_thresholding
@@ -29,13 +29,13 @@ def test_sparsity_conversion():
     a = np.array([0, 1, 2, 3, 4, 5, 6])
     sc = sparsity_conversion(a, 3)
     
-    np.testing.assert_array_equal(sc, np.array([3, 2, 1, 0, -1, -2, -3]))
+    assert_array_equal(sc, np.array([3, 2, 1, 0, -1, -2, -3]))
     
     # Test None case
     b = None
     sc2 = sparsity_conversion(b, 5)
     
-    np.testing.assert_array_equal(sc2, np.array([0 ,0 ,0, 0, 0]))
+    assert_array_equal(sc2, np.array([0 ,0 ,0, 0, 0]))
     
     
 def test_soft_thresholding():
@@ -44,7 +44,7 @@ def test_soft_thresholding():
     
     true_st = np.array([3, 0, -1, 0, 2, 0, -6])
     
-    np.testing.assert_array_equal(st, true_st)
+    assert_array_equal(st, true_st)
     
     
 def test_group_thresholding():
@@ -55,12 +55,12 @@ def test_group_thresholding():
     
     true_gt = np.array([0, -2.5, 3, -4.5, 2, 3.5, 1])
     
-    np.testing.assert_array_equal(gt, true_gt)
+    assert_array_equal(gt, true_gt)
     
     # Case 2: lambda_k/penalty > 1. Array is penalised (zeroed out)
     gt2 = _group_thresholding(array, 2, 1)    # lambda_k/penalty = 2 > 1
     
-    np.testing.assert_array_equal(gt2, np.zeros(len(array)))
+    assert_array_equal(gt2, np.zeros(len(array)))
     
     
 def test_lambda_quadratic():
@@ -73,7 +73,7 @@ def test_lambda_quadratic():
     true_lq = np.array([2.7, 1.615625, 0.0625, -1.965, -4.5, -7.565625,
                         -11.1625, -15.29625, -20, -25.3125, -31.25])
     
-    np.testing.assert_array_almost_equal(lq, true_lq)
+    assert_array_almost_equal(lq, true_lq)
     
     
 def test_sparse_group_thresholding():
@@ -83,68 +83,68 @@ def test_sparse_group_thresholding():
     true_sgt = np.array([-4.589466384, 0, 1.529822128, 0]) # R version
     # true_sgt = np.array([-0.9, 0, 0.3, 0]) # Literature version
     
-    np.testing.assert_array_almost_equal(sgt, true_sgt)
+    assert_array_almost_equal(sgt, true_sgt)
     
     
 def test_check_1d():    
     # Check that multi-dimensional arrays with n.dim > 2 raise ValueErrors
     multi_d = np.zeros((5, 4, 3))
-    np.testing.assert_raises(ValueError, _check_1d, multi_d)
+    assert_raises(ValueError, _check_1d, multi_d)
     
     # Check that 2D arrays raise ValueErrors
     two_d = np.zeros((5, 4))
-    np.testing.assert_raises(ValueError, _check_1d, two_d)
+    assert_raises(ValueError, _check_1d, two_d)
     
     # Test 1D arrays
     one_d_a = np.zeros(5)
-    np.testing.assert_array_equal(one_d_a, _check_1d(one_d_a))
+    assert_array_equal(one_d_a, _check_1d(one_d_a))
     
     # Check that 2D arrays with shapes (n,1) or (1,n) are converted to 1D
     one_d_b = np.zeros((5, 1))
     one_d_c = np.zeros((1, 5))
-    np.testing.assert_array_equal(one_d_a, _check_1d(one_d_b))
-    np.testing.assert_array_equal(one_d_a, _check_1d(one_d_c))
+    assert_array_equal(one_d_a, _check_1d(one_d_b))
+    assert_array_equal(one_d_a, _check_1d(one_d_c))
     
     
 def test_validate_block():
     a = np.array([0, 3, 5, 8, 9])
-    np.testing.assert_array_equal(a, _validate_block(a))
+    assert_array_equal(a, _validate_block(a))
     
     # Check that unordered arrays and arrays with repeated entries raise
     # ValueError
     b = np.array([9, 3, 5, 8, 0])   # Swap first and last entry
     c = np.array([0, 3, 3, 5, 8, 9])    # Repeat second entry
-    np.testing.assert_raises(ValueError, _validate_block, b)
-    np.testing.assert_raises(ValueError, _validate_block, c)
+    assert_raises(ValueError, _validate_block, b)
+    assert_raises(ValueError, _validate_block, c)
     
     
 def test_pls_array():
     # Case 1: valid array, min_length < max_length
     a = np.array([2, 4, 0, 3, 1, 5])
-    np.testing.assert_array_equal(a,
+    assert_array_equal(a,
                                   pls_array(a, max_length=6, min_length=0,
                                             max_entry=5, min_entry=0))
     
     # Case 2: valid array, min_length = max_length
-    np.testing.assert_array_equal(a,
+    assert_array_equal(a,
                                   pls_array(a, max_length=6, min_length=6,
                                             max_entry=5, min_entry=0))
     
     # Case 3: entries < min_entry. Raises ValueError
     b = np.array([-2, 4, 0, 3, 1, 5])
-    np.testing.assert_raises(ValueError, pls_array, b, 6, 0, 5, 0)
+    assert_raises(ValueError, pls_array, b, 6, 0, 5, 0)
     
     # Case 4: entries > max_entry. Raises ValueError
     c = np.array([100, 4, 0, 3, 1, 5])
-    np.testing.assert_raises(ValueError, pls_array, c, 6, 0, 5, 0)
+    assert_raises(ValueError, pls_array, c, 6, 0, 5, 0)
     
     # Case 5: length < min_length. Raises ValueError
     d = np.array([2, 4])
-    np.testing.assert_raises(ValueError, pls_array, d, 6, 3, 5, 0)
+    assert_raises(ValueError, pls_array, d, 6, 3, 5, 0)
     
     # Case 6: length > max_length. Raises ValueError
     e = np.array([2, 4, 0, 3, 1, 5, 4, 3, 2])
-    np.testing.assert_raises(ValueError, pls_array, e, 6, 3, 5, 0)
+    assert_raises(ValueError, pls_array, e, 6, 3, 5, 0)
     
     
 def test_pls_blocks():
@@ -160,12 +160,12 @@ def test_pls_blocks():
     block_b = pls_blocks(b, max_entry=15)
     block_c = pls_blocks(c, max_entry=15)
     
-    np.testing.assert_array_equal(block_orig, true_block)    # No change
-    np.testing.assert_array_equal(block_a, true_block)
-    np.testing.assert_array_equal(block_b, true_block)    
-    np.testing.assert_array_equal(block_c, true_block)
+    assert_array_equal(block_orig, true_block)    # No change
+    assert_array_equal(block_a, true_block)
+    assert_array_equal(block_b, true_block)    
+    assert_array_equal(block_c, true_block)
 
     # Check that UserWarning is raised
-    np.testing.assert_warns(UserWarning, pls_blocks, a, 15, 0, True)
-    np.testing.assert_warns(UserWarning, pls_blocks, b, 15, 0, True)
-    np.testing.assert_warns(UserWarning, pls_blocks, c, 15, 0, True)
+    assert_warns(UserWarning, pls_blocks, a, 15, 0, True)
+    assert_warns(UserWarning, pls_blocks, b, 15, 0, True)
+    assert_warns(UserWarning, pls_blocks, c, 15, 0, True)
