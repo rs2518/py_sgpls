@@ -19,12 +19,12 @@ from .utils import pls_blocks, pls_array
 __all__ = ['PLSCanonical', 'PLSRegression']
 
 
-class _PLS(TransformerMixin, RegressorMixin, MultiOutputMixin, BaseEstimator,
-           metaclass=ABCMeta):
+class _PLSBase(TransformerMixin, MultiOutputMixin, BaseEstimator,
+               metaclass=ABCMeta):
     """Partial Least Squares (PLS)
     
-    This class implements the generic mode A PLS algorithm, constructors' 
-    parameters allow to obtain a specific implementation such as:
+    # This class implements the generic mode A PLS algorithm, constructors' 
+    # parameters allow to obtain a specific implementation such as:
         
     - PLS2 regression, i.e., PLS 2 blocks, mode A, with asymmetric deflation
       and unnormalized y weights such as defined by [Tenenhaus 1998] p. 132.
@@ -129,8 +129,6 @@ class _PLS(TransformerMixin, RegressorMixin, MultiOutputMixin, BaseEstimator,
     PLSCanonical
     PLSRegression
     """
-    model = "pls"
-
     @abstractmethod
     def __init__(self, n_components=2, scale=True, deflation_mode="regression",
                  algorithm="nipals", norm_y_weights=False,
@@ -218,10 +216,10 @@ class _PLS(TransformerMixin, RegressorMixin, MultiOutputMixin, BaseEstimator,
                         max_length=self.n_components, min_entry=0,
                         max_entry=len(self.y_block)+1)
             
-            x_sparsity = sparsity_conversion(
-                    self.x_groups, len(self.x_block)+1)
-            y_sparsity = sparsity_conversion(
-                    self.y_groups, len(self.y_block)+1)
+            x_sparsity = sparsity_conversion(self.x_groups,
+                                             len(self.x_block)+1)
+            y_sparsity = sparsity_conversion(self.y_groups,
+                                             len(self.y_block)+1)
         
             if self.model == "sgpls":
                 self.alpha_x = pls_array(
@@ -478,6 +476,24 @@ class _PLS(TransformerMixin, RegressorMixin, MultiOutputMixin, BaseEstimator,
 
     def _more_tags(self):
         return {'poor_score': True}
+
+
+class _PLS(_PLSBase, RegressorMixin, metaclass=ABCMeta):
+    """Partial Least Squares (PLS)
+    
+    Base PLS class for regression problems (Mode A, regression and canonical
+    variants)
+    """
+    model = "pls"
+
+    @abstractmethod
+    def __init__(self, n_components=2, scale=True, deflation_mode="regression",
+                 algorithm="nipals", norm_y_weights=False,
+                 max_iter=500, tol=1e-06, copy=True):
+        super().__init__(n_components=n_components, scale=scale,
+                         deflation_mode=deflation_mode, algorithm=algorithm,
+                         norm_y_weights=norm_y_weights,
+                         max_iter=max_iter, tol=tol, copy=copy)
 
 
 class PLSRegression(_PLS):
