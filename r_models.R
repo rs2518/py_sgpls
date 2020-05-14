@@ -7,60 +7,36 @@ library(sgPLS)    # no PLS(da)
 # library(PLSgenomics) # only PLS and sPLS for univariate outcomes
 
 
-#### Code copied from "https://cran.r-project.org/web/packages/sgPLS/sgPLS.pdf" 
-## Simulation of datasets X and Y with group variables
-n <- 100
-sigma.gamma <- 1
-sigma.e <- 1.5
-p <- 400
-q <- 500
-theta.x1 <- c(rep(1, 15), rep(0, 5), rep(-1, 15), rep(0, 5),
-              rep(1.5, 15), rep(0, 5), rep(-1.5, 15), rep(0, 325))
-theta.x2 <- c(rep(0, 320), rep(1, 15), rep(0, 5), rep(-1, 15),
-              rep(0, 5), rep(1.5, 15), rep(0, 5), rep(-1.5, 15),
-              rep(0, 5))
 
-theta.y1 <- c(rep(1, 15), rep(0, 5), rep(-1, 15), rep(0, 5),
-              rep(1.5, 15), rep(0, 5), rep(-1.5, 15), rep(0, 425))
-theta.y2 <- c(rep(0, 420), rep(1, 15), rep(0, 5), rep(-1, 15)
-              ,rep(0, 5), rep(1.5, 15), rep(0, 5), rep(-1.5, 15)
-              , rep(0, 5))
-
-Sigmax <- matrix(0, nrow = p, ncol = p)
-diag(Sigmax) <- sigma.e ^ 2
-Sigmay <- matrix(0, nrow = q, ncol = q)
-diag(Sigmay) <- sigma.e ^ 2
-
-set.seed(125)
-
-gam1 <- rnorm(n)
-gam2 <- rnorm(n)
-
-X <- matrix(c(gam1, gam2), ncol = 2, byrow = FALSE) %*% matrix(c(theta.x1, theta.x2),
-                                                               nrow = 2, byrow = TRUE) + rmvnorm(n, mean = rep(0, p), sigma =
-                                                                                                   Sigmax, method = "svd")
-
-Y <- matrix(c(gam1, gam2), ncol = 2, byrow = FALSE) %*% matrix(c(theta.y1, theta.y2),
-                                                               nrow = 2, byrow = TRUE) + rmvnorm(n, mean = rep(0, q), sigma =
-                                                                                                   Sigmay, method = "svd")
+# Create function to save R results
+save_models <- function(path, model_list){
+  ##### Save model elements into individual csv files. Create new directory if one doesn't already exist
+  
+  # NOTE: R models cannot be directly saved and loaded into Python. Python packages 'rpy2' and 'pyreadr' exist
+  # to try and fix this however, pyreadr cannot parse the R object and rpy2 does not work on new versions of Python
+  
+  skip <- c("call", "X", "Y", "ncomp", "mode", "keepX", "keepY", "names", "tol", "max.iter",
+            "iter", "ind.block.x", "ind.block.y", "alpha.x", "alpha.y", "upper.lambda")
+  
+  ifelse(dir.exists(path), "", dir.create(path, showWarnings=FALSE))
+  for (model in model_list){
+    ifelse(dir.exists(paste0(path, model)), "", dir.create(paste0(path, model), showWarnings=FALSE))
+    for (item in names(get(model))){
+      if (!(item %in% skip)){
+        if (is.list(get(model)[[item]])){
+          for (index in 1:length(get(model)[[item]])){
+            write.csv(as.data.frame(get(model)[[item]][index]),
+                      file=paste0(path, model, "/", get(model)[["mode"]], "_", item, "_", index, ".csv"))}}
+        else{
+          write.csv(as.data.frame(get(model)[[item]]),
+                    file=paste0(path, model, "/", get(model)[["mode"]], "_", item, ".csv"))}}}}
+}
 
 
-#### Model parameters
-ncomp = 2
-
-keepX <- keepY <- c(60, 60)    # sPLS sparsity
-
-keepX.groups <- keepY.groups <- c(4, 4)    # gPLS/sgPLS sparsity
-ind.block.x <- seq(20, 380, 20)
-ind.block.y <- seq(20, 480, 20)
-
-alpha.x <- alpha.y <- c(0.95, 0.95)    # sgPLS sparsity mixin
-
-#############################################################################################
-# sgPLS package - Compare results
-#############################################################################################
-
-# Overwrite internal sgPLS function with more stringent uniroot tolerance (because Python's has higher accuracy)
+# ===================================================================================
+# Temporarily overwrite internal sgPLS function with more stringent uniroot tolerance
+# (since Python's brentq method achieves higher accuracy)
+# ===================================================================================
 new.step1.sgpls.sparsity <- function(X,Y,ind.block.x,ind.block.y,sparsity.x,sparsity.y,epsilon,iter.max,alpha.x,alpha.y,upper.lambda=upper.lambda, lambda.tol=10*.Machine$double.eps){
   print("sgPLS successfully overwritten")
   
@@ -130,105 +106,134 @@ new.step1.sgpls.sparsity <- function(X,Y,ind.block.x,ind.block.y,sparsity.x,spar
 }
 assignInNamespace("step1.sparse.group.spls.sparsity", value=new.step1.sgpls.sparsity, ns="sgPLS")
 
+# ===================================================================================
 
 
 
-# Save regression and canonical model results
+#############################################################################################
+# Regression problem - dataset 1
+#############################################################################################
+#### Data from "https://cran.r-project.org/web/packages/sgPLS/sgPLS.pdf" 
+
+# Simulation of datasets X and Y with group variables
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+n <- 100
+sigma.gamma <- 1
+sigma.e <- 1.5
+p <- 400
+q <- 500
+theta.x1 <- c(rep(1, 15), rep(0, 5), rep(-1, 15), rep(0, 5),
+              rep(1.5, 15), rep(0, 5), rep(-1.5, 15), rep(0, 325))
+theta.x2 <- c(rep(0, 320), rep(1, 15), rep(0, 5), rep(-1, 15),
+              rep(0, 5), rep(1.5, 15), rep(0, 5), rep(-1.5, 15),
+              rep(0, 5))
+
+theta.y1 <- c(rep(1, 15), rep(0, 5), rep(-1, 15), rep(0, 5),
+              rep(1.5, 15), rep(0, 5), rep(-1.5, 15), rep(0, 425))
+theta.y2 <- c(rep(0, 420), rep(1, 15), rep(0, 5), rep(-1, 15)
+              ,rep(0, 5), rep(1.5, 15), rep(0, 5), rep(-1.5, 15)
+              , rep(0, 5))
+
+Sigmax <- matrix(0, nrow = p, ncol = p)
+diag(Sigmax) <- sigma.e ^ 2
+Sigmay <- matrix(0, nrow = q, ncol = q)
+diag(Sigmay) <- sigma.e ^ 2
+
+set.seed(125)
+
+gam1 <- rnorm(n)
+gam2 <- rnorm(n)
+
+X <- matrix(c(gam1, gam2), ncol = 2, byrow = FALSE) %*% matrix(c(theta.x1, theta.x2),
+                                                               nrow = 2, byrow = TRUE) + rmvnorm(n, mean = rep(0, p), sigma =
+                                                                                                   Sigmax, method = "svd")
+
+Y <- matrix(c(gam1, gam2), ncol = 2, byrow = FALSE) %*% matrix(c(theta.y1, theta.y2),
+                                                               nrow = 2, byrow = TRUE) + rmvnorm(n, mean = rep(0, q), sigma =
+                                                                                                   Sigmay, method = "svd")
+
+# write.csv(X, file=paste0(path,"X.csv"))
+# write.csv(Y, file=paste0(path,"Y.csv"))
+
+
+# Model parameters
+ncomp = 2
+keepX <- keepY <- c(60, 60)    # sPLS sparsity
+keepX.groups <- keepY.groups <- c(4, 4)    # gPLS/sgPLS sparsity
+ind.block.x <- seq(20, 380, 20)
+ind.block.y <- seq(20, 480, 20)
+alpha.x <- alpha.y <- c(0.95, 0.95)    # sgPLS sparsity mixin
+
+
+# Run sgPLS models and save for comparison
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 modes <- c("regression", "canonical")
-scale <- TRUE
+path1 <- "~/Desktop/py_sgpls/data/dataset1/"
 
-path <- "~/Desktop/py_sgpls/data/dataset1/"
-ifelse(dir.exists(path), "", dir.create(path, showWarnings=FALSE))
-
-model_list <- c("sgPLS_spls", "sgPLS_gpls", "sgPLS_sgpls")
-skip <- c("call", "X", "Y", "ncomp", "mode", "keepX", "keepY", "names", "tol", "max.iter",
-          "iter", "ind.block.x", "ind.block.y", "alpha.x", "alpha.y", "upper.lambda")
-
-for (i in length(modes)){
+# Loop over regression and canonical modes
+for (i in 1:length(modes)){
   
-  #### sPLS model
-  sgPLS_spls <- sPLS(X, Y, ncomp = ncomp, mode = modes[i], keepX = keepX, keepY = keepY, scale = scale)
+  ## sPLS model
+  sgPLS_spls <- sPLS(X, Y, ncomp = ncomp, mode = modes[i], keepX = keepX, keepY = keepY, scale = TRUE)
+  ## gPLS model
+  sgPLS_gpls <- gPLS(X, Y, ncomp = ncomp, mode = modes[i], keepX = keepX.groups, keepY = keepY.groups,
+                     ind.block.x = ind.block.x , ind.block.y = ind.block.y, scale = TRUE)
+  ## sgPLS model
+  sgPLS_sgpls <- sgPLS(X, Y, ncomp = ncomp, mode = modes[i], keepX = keepX.groups, keepY = keepY.groups,
+                       ind.block.x = ind.block.x, ind.block.y = ind.block.y,
+                       alpha.x = alpha.x, alpha.y = alpha.y, scale = TRUE)
   
-  # result.sPLS <- select.spls(sgPLS_spls)    # Returns the indices of non-zero variables
-  # result.sPLS$select.X
-  # result.sPLS$select.Y
-  
-  #### gPLS model
-  sgPLS_gpls <- gPLS(X, Y, ncomp = ncomp, mode = modes[i], keepX = keepX.groups,
-                     keepY = keepY.groups, ind.block.x = ind.block.x , ind.block.y = ind.block.y,
-                     scale = scale)
-  
-  # result.gPLS <- select.sgpls(sgPLS_gpls)    # Returns the indices of non-zero groups of variables (and group sizes)
-  # result.gPLS$group.size.X
-  # result.gPLS$group.size.Y
-  
-  #### sgPLS model
-  sgPLS_sgpls <- sgPLS(X, Y, ncomp = ncomp, mode = modes[i], keepX = keepX.groups,
-                       keepY = keepY.groups, ind.block.x = ind.block.x, ind.block.y = ind.block.y,
-                       alpha.x = alpha.x, alpha.y = alpha.y, scale = scale)
-  
-  # result.sgPLS <- select.sgpls(sgPLS_sgpls)    # Returns the indices of non-zero groups and number of non-zero variables in each group
-  # result.sgPLS$group.size.X
-  # result.sgPLS$group.size.Y
-  
-  
-  ##### Save model elements into individual files. Create new directory if one doesn't already exist
-  # NOTE: R models cannot be directly saved and loaded into Python. Python packages 'rpy2' and 'pyreadr' exist
-  # to try and fix this however, pyreadr cannot parse the R object and rpy2 does not work on new versions of Python
-  for (model in model_list){
-    ifelse(dir.exists(paste0(path, model)), "", dir.create(paste0(path, model), showWarnings=FALSE))
-    for (item in names(get(model))){
-      if (!(item %in% skip)){
-        if (is.list(get(model)[[item]])){
-          for (index in 1:length(get(model)[[item]])){
-           write.csv(as.data.frame(get(model)[[item]][index]),
-                     file=paste0(path, model, "/", modes[i], "_", item, "_", index, ".csv"))}}
-        else{
-          write.csv(as.data.frame(get(model)[[item]]),
-                    file=paste0(path, model, "/", modes[i], "_", item, ".csv"))}}}}
+  # Save results
+  save_models(path = path1, model_list = c("sgPLS_spls", "sgPLS_gpls", "sgPLS_sgpls"))
 }
 
 
-write.csv(X, file=paste0(path,"X.csv"))
-write.csv(Y, file=paste0(path,"Y.csv"))
-
 #############################################################################################
-# sgPLS package - Run times (regression mode)
+# Classification problem - dataset 2
 #############################################################################################
-n_runs <- 100
-mode <- "regression"
-spls.times <- gpls.times <- sgpls.times <- NULL
+#### Data from "https://cran.r-project.org/web/packages/sgPLS/sgPLS.pdf" 
 
-# Could parallelise process to handle more runs
-for (n in (1:n_runs)){
-  # sPLS
-  t0 <- Sys.time()
-  spls.model <- sPLS(X, Y, ncomp = ncomp, mode = mode, keepX = keepX, keepY = keepY)
-  t1 <- Sys.time()
-  spls.times <- c(spls.times, (t1 - t0))
-  
-  # gPLS
-  t0 <- Sys.time()
-  gpls.model <- gPLS(X, Y, ncomp = ncomp, mode = mode, keepX = keepX.groups,
-                     keepY = keepY.groups, ind.block.x = ind.block.x , ind.block.y = ind.block.y)
-  t1 <- Sys.time()
-  gpls.times <- c(gpls.times, (t1 - t0))
-  
-  # sgPLS
-  t0 <- Sys.time()
-  sgpls.model <- sgPLS(X, Y, ncomp = ncomp, mode = mode, keepX = keepX.groups,
-                      keepY = keepY.groups, ind.block.x = ind.block.x, ind.block.y = ind.block.y,
-                      alpha.x = alpha.x, alpha.y = alpha.y)
-  t1 <- Sys.time()
-  sgpls.times <- c(sgpls.times, (t1 - t0))
-}
+# Load simulated data with categorical target
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+data(simuData)
+X <- simuData$X
+Y <- simuData$Y
 
-run_times <- as.data.frame(rbind(spls.times, gpls.times, sgpls.times),
-                     row.names = c("sPLS", "gPLS", "sgPLS"))    # NOTE: col.names is inactive in as.data.frame
-colnames(run_times) <- paste("t", seq(n_runs), sep="")
+# Model parameters
+ncomp <- 3
+# keepX <- ?    # To be determined from results of plsda
+keepX.groups <- c(2, 2, 2)
+ind.block.x <- seq(100, 900, 100)
+ind.block.x[2] <- 250     # To add some noise in the second group
+alpha.x <- c(0.5,0.5,0.99)
 
-mean_times <- as.data.frame(apply(run_times, MARGIN=1, FUN = mean))
-sd_times <- as.data.frame(apply(run_times, MARGIN=1, FUN = sd))     # NOTE: Dropping colnames removes values (BUG)
+
+# Run sgPLS models and save for comparison
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# NOTE: Only "regression" mode is available for discriminant analysis in sgPLS package
+path2 <- "~/Desktop/py_sgpls/data/dataset2/"
+
+## PLS-DA model
+sgPLS_plsda <- sPLSda(X, Y, ncomp=ncomp)
+
+# ### Compare mixOmics PLS-DA with sgPLS sPLSDA (zero sparsity)
+# mixOmics_plsda <- plsda(X, Y, ncomp=ncomp)
+# A <- as.matrix(mixOmics_plsda[["variates"]][["X"]])
+# B <- as.matrix(sgPLS_plsda[["variates"]][["X"]])
+# dimnames(A) <- dimnames(B) <- NULL
+# stopifnot(all.equal(abs(A)*sign(B), B))
+
+## sPLSDA model
+sgPLS_splsda <- sPLSda(X, Y, ncomp=ncomp, keepX=keepX)
+## gPLSDA model
+sgPLS_gplsda <- gPLSda(X, Y, ncomp=ncomp, ind.block.x=ind.block.x, keepX=keepX.groups)
+## sgPLSDA model
+sgPLS_sgplsda <- sgPLSda(X, Y, ncomp=ncomp, ind.block.x=ind.block.x, keepX=keepX.groups, alpha.x=alpha.x)
+
+# Save results
+save_models(path = path2, model_list = c("sgPLS_plsda", "sgPLS_gplsda", "sgPLS_sgplsda"))
+
+
 
 
 

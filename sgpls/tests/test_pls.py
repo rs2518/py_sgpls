@@ -8,14 +8,16 @@ directory = 'Desktop/py_sgpls'
 path = os.path.join(os.path.abspath('.'), directory)
 sys.path.append(path)
 # =============================================================================
-# =============================================================================
-# import pytest
 import os
 
 from sgpls import _pls as pls_
 from sgpls import _spls as spls_
 from sgpls import _gpls as gpls_
 from sgpls import _sgpls as sgpls_
+from sgpls import _plsda as plsda_
+# from sgpls import _splsda as splsda_
+# from sgpls import _gplsda as gplsda_
+# from sgpls import _sgplsda as sgplsda_
 
 from sklearn.cross_decomposition import _pls as sklearn_pls_
 
@@ -23,9 +25,8 @@ import pandas as pd
 import numpy as np
 
 
-# =============================================================================
 # NOTES
-# =============================================================================
+# ----------------------------------------------------------------------------
 # There are Python packages that can run R code and handle R objects
 # however, neither worked in this case (-_-):
 #    - pyreadr parse method does not work on the models that were created 
@@ -34,10 +35,7 @@ import numpy as np
 #    - rpy2 cannot be imported because it requires an older version of Python.
 
 
-data_path = "Desktop/py_sgpls/data/dataset1"
-# folders = [f for f in os.listdir(data_path) if f.endswith("pls")]
-
-
+# Load R data into dictionary
 def load_csv_data(directory, find=None):
     """Returns dictionary of data obtained from a directory
     
@@ -62,6 +60,14 @@ def load_csv_data(directory, find=None):
     return dict_df
 
 
+# =============================================================================
+# Regression problem - dataset 1
+# =============================================================================
+
+
+data_path = "Desktop/py_sgpls/data/dataset1"
+# folders = [f for f in os.listdir(data_path) if f.endswith("pls")]
+
 sPLS_R_reg = load_csv_data(os.path.join(data_path, 'sgPLS_spls'),
                            find="regression")
 gPLS_R_reg = load_csv_data(os.path.join(data_path, 'sgPLS_gpls'),
@@ -76,36 +82,34 @@ sgPLS_R_ca = load_csv_data(os.path.join(data_path, 'sgPLS_sgpls'),
                            find="canonical")
 
 
-
-
 X = pd.read_csv(os.path.join(data_path, "X.csv"), index_col = 0,
                 dtype='float').values
 Y = pd.read_csv(os.path.join(data_path, "Y.csv"), index_col = 0,
                 dtype='float').values
 
 n_components = 2
-
 x_vars = y_vars = np.array([60, 60])
-
 x_groups = y_groups = np.array([4, 4])
 x_block = np.arange(20, 400, 20)
 y_block = np.arange(20, 500, 20)
-
 alpha_x = alpha_y = np.array([0.95, 0.95])
 
-# =============================================================================
+
+# Compare model results
+# =====================
+
 # vs. sklearn - PLS
-# =============================================================================
+# -----------------
 # Testing the PLS algorithm against sklearn alone should suffice since
 # sklearn's has been thoroughly vetted and the py_sgpls implementation is
-# taken from sklearn.
+# based upon sklearn's framework.
 
 # Regression mode
+# ---------------
 plsreg = pls_.PLSRegression(n_components=n_components)
 plsreg.fit(X, Y)
 plsreg_sklearn = sklearn_pls_.PLSRegression(n_components=n_components)
 plsreg_sklearn.fit(X, Y)
-
 
 np.testing.assert_array_almost_equal(plsreg.x_scores_,
                                      plsreg_sklearn.x_scores_)
@@ -120,13 +124,12 @@ np.testing.assert_array_almost_equal(plsreg.y_loadings_,
 np.testing.assert_array_almost_equal(plsreg.y_weights_,
                                      plsreg_sklearn.y_weights_)
 
-
 # Canonical Mode
+# --------------
 plsca = pls_.PLSCanonical(n_components=n_components)
 plsca.fit(X, Y)
 plsca_sklearn = sklearn_pls_.PLSCanonical(n_components=n_components)
 plsca_sklearn.fit(X, Y)
-
 
 np.testing.assert_array_almost_equal(plsca.x_scores_,
                                      plsca_sklearn.x_scores_)
@@ -142,15 +145,14 @@ np.testing.assert_array_almost_equal(plsca.y_weights_,
                                      plsca_sklearn.y_weights_)
 
 
-
-# =============================================================================
 # vs. R package sgPLS - sPLS
-# =============================================================================
+# --------------------------
+
 # Regression mode
+# ---------------
 splsreg = spls_.sPLSRegression(x_vars=x_vars, y_vars=y_vars,
                                n_components=n_components)
 splsreg.fit(X, Y)
-
 
 np.testing.assert_array_almost_equal(splsreg.x_scores_,
                                      sPLS_R_reg['regression_variates_1'])
@@ -165,12 +167,11 @@ np.testing.assert_array_almost_equal(splsreg.y_loadings_,
 np.testing.assert_array_almost_equal(splsreg.y_weights_,
                                      sPLS_R_reg['regression_loadings_2'])
 
-
 # Canonical Mode
+# --------------
 splsca = spls_.sPLSCanonical(x_vars=x_vars, y_vars=y_vars,
                              n_components=n_components)
 splsca.fit(X, Y)
-
 
 np.testing.assert_array_almost_equal(splsca.x_scores_,
                                      sPLS_R_ca['canonical_variates_1'])
@@ -186,16 +187,15 @@ np.testing.assert_array_almost_equal(splsca.y_weights_,
                                      sPLS_R_ca['canonical_loadings_2'])
 
 
-
-# =============================================================================
 # vs. R package sgPLS - gPLS
-# =============================================================================
+# --------------------------
+
 # Regression mode
+# ---------------
 gplsreg = gpls_.gPLSRegression(x_groups=x_groups, y_groups=y_groups,
                                x_block=x_block, y_block=y_block,
                                n_components=n_components)
 gplsreg.fit(X, Y)
-
 
 np.testing.assert_array_almost_equal(gplsreg.x_scores_,
                                      gPLS_R_reg['regression_variates_1'])
@@ -210,13 +210,12 @@ np.testing.assert_array_almost_equal(gplsreg.y_loadings_,
 np.testing.assert_array_almost_equal(gplsreg.y_weights_,
                                      gPLS_R_reg['regression_loadings_2'])
 
-
 # Canonical Mode
+# --------------
 gplsca = gpls_.gPLSCanonical(x_groups=x_groups, y_groups=y_groups,
                              x_block=x_block, y_block=y_block,
                              n_components=n_components)
 gplsca.fit(X, Y)
-
 
 np.testing.assert_array_almost_equal(gplsca.x_scores_,
                                      gPLS_R_ca['canonical_variates_1'])
@@ -232,27 +231,25 @@ np.testing.assert_array_almost_equal(gplsca.y_weights_,
                                      gPLS_R_ca['canonical_loadings_2'])
 
 
-
-# =============================================================================
 # vs. R package sgPLS - sgPLS
-# =============================================================================
-# NOTES: Numerical errors will occur in the numerical methods used in the
+# ---------------------------
+# NOTE: Numerical errors will occur in the numerical methods used in the
 # sgPLS algorithm. To ensure that the R and Python implementations agree up to
-# a sufficiently high precision, the R code has been temporarily overwritten
-# so that its internal functions achieve great enough accuracy to be
-# comparable to Python (which appears to achieve higher accuracy than R).
+# a sufficiently degree, the R code has been temporarily overwritten so that
+# its internal functions achieve great enough accuracy to be comparable to
+# Python (which appears to achieve higher accuracy than R).
 #
 # Also, an inconsistency appears between the literature and original R code
 # which affects the _sparse_group_thresholding function. Both versions have
 # been added for comparison
 
 # Regression mode
+# ---------------
 sgplsreg = sgpls_.sgPLSRegression(x_groups=x_groups, y_groups=y_groups,
                                   x_block=x_block, y_block=y_block,
                                   alpha_x=alpha_x, alpha_y=alpha_y,
                                   n_components=n_components)
 sgplsreg.fit(X, Y)
-
 
 np.testing.assert_array_almost_equal(sgplsreg.x_scores_,
                                      sgPLS_R_reg['regression_variates_1'])
@@ -267,14 +264,13 @@ np.testing.assert_array_almost_equal(sgplsreg.y_loadings_,
 np.testing.assert_array_almost_equal(sgplsreg.y_weights_,
                                      sgPLS_R_reg['regression_loadings_2'])
 
-
 # Canonical Mode
+# --------------
 sgplsca = sgpls_.sgPLSCanonical(x_groups=x_groups, y_groups=y_groups,
                                 x_block=x_block, y_block=y_block,
                                 alpha_x=alpha_x, alpha_y=alpha_y,
                                 n_components=n_components)
 sgplsca.fit(X, Y)
-
 
 np.testing.assert_array_almost_equal(sgplsca.x_scores_,
                                      sgPLS_R_ca['canonical_variates_1'])
@@ -295,3 +291,60 @@ np.testing.assert_array_almost_equal(sgplsca.y_weights_,
 # Re-position arguments for _lambda_quadratic for brentq to work
 # Run R's uniroot with smaller tolerance to minimise numerical differences
 # with Python's brentq
+
+
+# =============================================================================
+# Classification problem - dataset 2
+# =============================================================================
+
+
+data_path2 = "Desktop/py_sgpls/data/dataset2"
+
+
+PLSDA_R = load_csv_data(os.path.join(data_path2, 'sgPLS_plsda'),
+                           find="regression")
+# sPLSDA_R = load_csv_data(os.path.join(data_path2, 'sgPLS_splsda'),
+#                            find="regression")
+gPLSDA_R = load_csv_data(os.path.join(data_path2, 'sgPLS_gplsda'),
+                           find="regression")
+sgPLSDA_R = load_csv_data(os.path.join(data_path2, 'sgPLS_sgplsda'),
+                            find="regression")
+
+
+df = pd.read_csv(os.path.join(data_path2, "simuData.csv"), index_col = 0)
+
+X = df.iloc[:,:-1].values
+Y = df.iloc[:,-1].astype('category')
+
+n_components = 3
+# x_vars = np.array([60, 60])
+x_groups = np.array([2, 2, 2])
+x_block = np.insert(np.arange(100, 1000, 100), 2, 250)
+alpha_x = np.array([0.5, 0.5, 0.99])
+
+
+# Compare model results
+# =====================
+
+# vs. R package sgPLS - PLS-DA
+# ----------------------------
+# Testing the PLS algorithm against sklearn alone should suffice since
+# sklearn's has been thoroughly vetted and the py_sgpls implementation is
+# based upon sklearn's framework.
+
+plsda = plsda_.PLSDARegression(n_components=n_components)
+plsda.fit(X, Y)
+
+np.testing.assert_array_almost_equal(plsda.x_scores_,
+                                     PLSDA_R['regression_variates_1'])
+np.testing.assert_array_almost_equal(plsda.x_loadings_,
+                                     PLSDA_R['regression_mat.c'])
+np.testing.assert_array_almost_equal(plsda.x_weights_,
+                                     PLSDA_R['regression_loadings_1'])
+np.testing.assert_array_almost_equal(plsda.y_scores_,
+                                     PLSDA_R['regression_variates_2'])
+np.testing.assert_array_almost_equal(plsda.y_loadings_,
+                                     PLSDA_R['regression_mat.d'])
+np.testing.assert_array_almost_equal(plsda.y_weights_,
+                                     PLSDA_R['regression_loadings_2'])
+
