@@ -285,12 +285,6 @@ np.testing.assert_array_almost_equal(sgplsca.y_loadings_,
 np.testing.assert_array_almost_equal(sgplsca.y_weights_,
                                      sgPLS_R_ca['canonical_loadings_2'])
 
-# ***** FIXED!
-# norm_y_weights set to True for Regression and Canonical
-# Use .copy() when updating iterables to prevent overwriting arrays
-# Re-position arguments for _lambda_quadratic for brentq to work
-# Run R's uniroot with smaller tolerance to minimise numerical differences
-# with Python's brentq
 
 
 # =============================================================================
@@ -314,7 +308,7 @@ sgPLSDA_R = load_csv_data(os.path.join(data_path2, 'sgPLS_sgplsda'),
 df = pd.read_csv(os.path.join(data_path2, "simuData.csv"), index_col = 0)
 
 X = df.iloc[:,:-1].values
-Y = df.iloc[:,-1].astype('category')
+Y = df.iloc[:,-1].astype('category').cat.codes
 
 n_components = 3
 # x_vars = np.array([60, 60])
@@ -328,9 +322,8 @@ alpha_x = np.array([0.5, 0.5, 0.99])
 
 # vs. R package sgPLS - PLS-DA
 # ----------------------------
-# Testing the PLS algorithm against sklearn alone should suffice since
-# sklearn's has been thoroughly vetted and the py_sgpls implementation is
-# based upon sklearn's framework.
+# Although sgPLS does not explicitly have a PLS-DA implementation, we can run
+# PLS-DA but running sPLS-DA with no sparsity
 
 plsda = plsda_.PLSDARegression(n_components=n_components)
 plsda.fit(X, Y)
@@ -347,4 +340,5 @@ np.testing.assert_array_almost_equal(plsda.y_loadings_,
                                      PLSDA_R['regression_mat.d'])
 np.testing.assert_array_almost_equal(plsda.y_weights_,
                                      PLSDA_R['regression_loadings_2'])
-
+# Values show small errors and sign differences. Could be because of the
+# slightly different convergence criteria used
