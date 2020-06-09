@@ -1,4 +1,4 @@
-from abc import abstractmethod
+from abc import ABCMeta, abstractmethod
 
 import numpy as np
 
@@ -10,13 +10,13 @@ from sklearn.preprocessing import LabelBinarizer
 from sklearn.metrics.pairwise import pairwise_distances_argmin
 from scipy.linalg import pinv2
 
-from ._pls import _PLSBase
+from ._base import _PLSBase
 from .utils import _check_1d
 
 __all__ = ['PLSDACanonical', 'PLSDARegression']
 
 
-class _PLSDA(_PLSBase, ClassifierMixin):
+class _PLSDA(_PLSBase, ClassifierMixin, metaclass=ABCMeta):
     """Partial Least Squares Discriminant Analysis (PLS-DA)
     
     Base PLS class for classification problems (Mode A, regression and
