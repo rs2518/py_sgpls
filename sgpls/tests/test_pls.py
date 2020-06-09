@@ -20,6 +20,7 @@ from sgpls import _plsda as plsda_
 # from sgpls import _sgplsda as sgplsda_
 
 from sklearn.cross_decomposition import _pls as sklearn_pls_
+from sklearn.preprocessing import LabelEncoder
 
 import pandas as pd
 import numpy as np
@@ -298,7 +299,7 @@ data_path2 = "Desktop/py_sgpls/data/dataset2"
 PLSDA_R = load_csv_data(os.path.join(data_path2, 'sgPLS_plsda'),
                            find="regression")
 # sPLSDA_R = load_csv_data(os.path.join(data_path2, 'sgPLS_splsda'),
-#                            find="regression")
+#                             find="regression")
 gPLSDA_R = load_csv_data(os.path.join(data_path2, 'sgPLS_gplsda'),
                            find="regression")
 sgPLSDA_R = load_csv_data(os.path.join(data_path2, 'sgPLS_sgplsda'),
@@ -306,9 +307,9 @@ sgPLSDA_R = load_csv_data(os.path.join(data_path2, 'sgPLS_sgplsda'),
 
 
 df = pd.read_csv(os.path.join(data_path2, "simuData.csv"), index_col = 0)
-
 X = df.iloc[:,:-1].values
-Y = df.iloc[:,-1].astype('category').cat.codes
+le = LabelEncoder()
+Y = le.fit_transform(df.iloc[:,-1].astype('category')).astype(float)
 
 n_components = 3
 # x_vars = np.array([60, 60])
@@ -340,5 +341,5 @@ np.testing.assert_array_almost_equal(plsda.y_loadings_,
                                      PLSDA_R['regression_mat.d'])
 np.testing.assert_array_almost_equal(plsda.y_weights_,
                                      PLSDA_R['regression_loadings_2'])
-# Values show small errors and sign differences. Could be because of the
-# slightly different convergence criteria used
+# Values show small errors and sign differences because of numerical errors
+# from the approximation given by NIPALS compared to SVD results
