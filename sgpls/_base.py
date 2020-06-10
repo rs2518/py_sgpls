@@ -5,7 +5,6 @@ import numpy as np
 from scipy.linalg import pinv2
 
 from sklearn.base import BaseEstimator, TransformerMixin
-from sklearn.base import MultiOutputMixin
 from sklearn.utils import check_array, check_consistent_length
 from sklearn.utils.extmath import svd_flip
 from sklearn.utils.validation import check_is_fitted, FLOAT_DTYPES
@@ -17,8 +16,7 @@ from .utils import _gpls_inner_loop, _sgpls_inner_loop
 from .utils import pls_blocks, pls_array
 
 
-class _PLSBase(TransformerMixin, MultiOutputMixin, BaseEstimator,
-               metaclass=ABCMeta):
+class _PLSBase(TransformerMixin, BaseEstimator, metaclass=ABCMeta):
     """Partial Least Squares (PLS)
     
     # This class implements the generic mode A PLS algorithm, constructors' 

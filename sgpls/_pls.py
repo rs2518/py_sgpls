@@ -1,13 +1,13 @@
 from abc import ABCMeta, abstractmethod
 
-from sklearn.base import RegressorMixin
+from sklearn.base import RegressorMixin, MultiOutputMixin
 
 from ._base import _PLSBase
 
 __all__ = ['PLSCanonical', 'PLSRegression']
 
 
-class _PLS(_PLSBase, RegressorMixin, metaclass=ABCMeta):
+class _PLS(_PLSBase, RegressorMixin, MultiOutputMixin, metaclass=ABCMeta):
     """Partial Least Squares (PLS)
     
     Base PLS class for regression problems (Mode A, regression and canonical
