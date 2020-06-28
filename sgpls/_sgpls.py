@@ -166,7 +166,7 @@ class _sgPLS(_gPLS):
                          norm_y_weights=norm_y_weights,
                          max_iter=max_iter, tol=tol, copy=copy)
         self.alpha_x = _check_1d(alpha_x)
-        if y_block is None:
+        if alpha_y is None:
             self.alpha_y = alpha_y
         else:
             self.alpha_y = _check_1d(alpha_y)
