@@ -138,7 +138,7 @@ class _PLSBase(TransformerMixin, BaseEstimator, metaclass=ABCMeta):
         self.tol = tol
         self.copy = copy
 
-    def fit(self, X, Y):
+    def _fit(self, X, Y):
         """Fit model to data.
         
         Parameters
@@ -426,22 +426,22 @@ class _PLSBase(TransformerMixin, BaseEstimator, metaclass=ABCMeta):
         X_reconstructed += self.x_mean_
         return X_reconstructed
 
-    def predict(self, X, copy=True):
+    def _decision_function(self, X, copy=True):
         """Apply the dimension reduction learned on the train data.
         
-        Parameters
-        ----------
-        X : array-like of shape (n_samples, n_features)
-            Training vectors, where n_samples is the number of samples and
-            n_features is the number of predictors.
+        # Parameters
+        # ----------
+        # X : array-like of shape (n_samples, n_features)
+        #     Training vectors, where n_samples is the number of samples and
+        #     n_features is the number of predictors.
             
-        copy : boolean, default True
-            Whether to copy X and Y, or perform in-place normalization.
+        # copy : boolean, default True
+        #     Whether to copy X and Y, or perform in-place normalization.
             
-        Notes
-        -----
-        This call requires the estimation of a p x q matrix, which may
-        be an issue in high dimensional space.
+        # Notes
+        # -----
+        # This call requires the estimation of a p x q matrix, which may
+        # be an issue in high dimensional space.
         """
         check_is_fitted(self)
         X = check_array(X, copy=copy, dtype=FLOAT_DTYPES)

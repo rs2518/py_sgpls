@@ -23,7 +23,37 @@ class _PLS(_PLSBase, RegressorMixin, MultiOutputMixin, metaclass=ABCMeta):
                          deflation_mode=deflation_mode, algorithm=algorithm,
                          norm_y_weights=norm_y_weights,
                          max_iter=max_iter, tol=tol, copy=copy)
-
+        
+    def fit(self, X, Y):
+        """Fit model to data.
+        
+        Parameters
+        ----------
+        X : array-like of shape (n_samples, n_features)
+            Training vectors, where n_samples is the number of samples and
+            n_features is the number of predictors.
+            
+        Y : array-like of shape (n_samples, n_targets)
+            Target vectors, where n_samples is the number of samples and
+            n_targets is the number of response variables.
+        """
+        super()._fit(X, Y)
+        return self
+    
+    def predict(self, X, copy=True):
+        """Fit model to data.
+        
+        Parameters
+        ----------
+        X : array-like of shape (n_samples, n_features)
+            Training vectors, where n_samples is the number of samples and
+            n_features is the number of predictors.
+            
+        Y : array-like of shape (n_samples, n_targets)
+            Target vectors, where n_samples is the number of samples and
+            n_targets is the number of response variables.
+        """
+        return super()._decision_function(self, X, copy=True)
 
 class PLSRegression(_PLS):
     """PLS regression
