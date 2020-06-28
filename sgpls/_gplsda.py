@@ -17,11 +17,12 @@ class _gPLSDA(_PLSDA):
 
     @abstractmethod
     def __init__(self, x_block, x_groups, y_block=None, y_groups=None,
-                 n_components=2, scale=True, deflation_mode="regression",
-                 norm_y_weights=False, max_iter=500, tol=1e-06, copy=True):
+                 n_components=2, scale=True, method="softmax",
+                 deflation_mode="regression", norm_y_weights=False,
+                 max_iter=500, tol=1e-06, copy=True):
         super().__init__(n_components=n_components, scale=scale,
-                         deflation_mode=deflation_mode, algorithm="NA",
-                         norm_y_weights=norm_y_weights,
+                         method=method, deflation_mode=deflation_mode,
+                         algorithm="NA", norm_y_weights=norm_y_weights,
                          max_iter=max_iter, tol=tol, copy=copy)        
         self.x_block = _check_1d(x_block)
         self.x_groups = _check_1d(x_groups)
@@ -36,10 +37,10 @@ class gPLSDARegression(_gPLSDA):
     """
 
     def __init__(self, x_block, x_groups, n_components=2, scale=True,
-                 max_iter=500, tol=1e-06, copy=True):
+                 method="softmax", max_iter=500, tol=1e-06, copy=True):
         super().__init__(
             x_block, x_groups, y_block=None, y_groups=None,
-            n_components=n_components, scale=scale,
+            n_components=n_components, scale=scale, method=method,
             deflation_mode="regression", norm_y_weights=True,
             max_iter=max_iter, tol=tol, copy=copy)
 
@@ -51,9 +52,9 @@ class gPLSDACanonical(_gPLSDA):
     """
 
     def __init__(self, x_block, x_groups, n_components=2, scale=True,
-                 max_iter=500, tol=1e-06, copy=True):
+                 method="softmax", max_iter=500, tol=1e-06, copy=True):
         super().__init__(
             x_block, x_groups, y_block=None, y_groups=None,
-            n_components=n_components, scale=scale,
+            n_components=n_components, scale=scale, method=method,
             deflation_mode="canonical", norm_y_weights=True,
             max_iter=max_iter, tol=tol, copy=copy)
