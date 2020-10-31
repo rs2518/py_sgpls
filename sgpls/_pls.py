@@ -53,7 +53,7 @@ class _PLS(_PLSBase, RegressorMixin, MultiOutputMixin, metaclass=ABCMeta):
             Target vectors, where n_samples is the number of samples and
             n_targets is the number of response variables.
         """
-        return super()._decision_function(self, X, copy=True)
+        return super()._decision_function(self, X)
 
 class PLSRegression(_PLS):
     """PLS regression
