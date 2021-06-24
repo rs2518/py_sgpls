@@ -8,3 +8,5 @@ __pycache__/
 # Scrap code and notes
 scrap.py
 notes.txt
+legacy/
+old/

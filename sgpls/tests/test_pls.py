@@ -1,29 +1,20 @@
-# =============================================================================
-# TEMPORARY IMPORT. REMOVE WHEN FINALISED
-# =============================================================================
-# Import locally
-import os, sys
-
-directory = 'Desktop/py_sgpls'
-path = os.path.join(os.path.abspath('.'), directory)
-sys.path.append(path)
-# =============================================================================
 import os
 
-from sgpls import _pls as pls_
-from sgpls import _spls as spls_
-from sgpls import _gpls as gpls_
-from sgpls import _sgpls as sgpls_
-from sgpls import _plsda as plsda_
-# from sgpls import _splsda as splsda_
-# from sgpls import _gplsda as gplsda_
-# from sgpls import _sgplsda as sgplsda_
+import pandas as pd
+import numpy as np
 
 from sklearn.cross_decomposition import _pls as sklearn_pls_
 from sklearn.preprocessing import LabelEncoder
 
-import pandas as pd
-import numpy as np
+from sgpls import _pls as pls_
+# from sgpls import _spls as spls_
+# from sgpls import _gpls as gpls_
+# from sgpls import _sgpls as sgpls_
+# from sgpls import _plsda as plsda_
+# from sgpls import _splsda as splsda_
+# from sgpls import _gplsda as gplsda_
+# from sgpls import _sgplsda as sgplsda_
+
 
 
 # NOTES
@@ -66,7 +57,7 @@ def load_csv_data(directory, find=None):
 # =============================================================================
 
 
-data_path = "Desktop/py_sgpls/data/dataset1"
+data_path = "Desktop/Git/py_sgpls/data/dataset1"
 # folders = [f for f in os.listdir(data_path) if f.endswith("pls")]
 
 sPLS_R_reg = load_csv_data(os.path.join(data_path, 'sgPLS_spls'),
@@ -110,6 +101,9 @@ alpha_x = alpha_y = np.array([0.95, 0.95])
 plsreg = pls_.PLSRegression(n_components=n_components)
 plsreg.fit(X, Y)
 plsreg_sklearn = sklearn_pls_.PLSRegression(n_components=n_components)
+# plsreg_sklearn = sklearn_pls_.PLSRegression(n_components=n_components,
+#                                             tol=1e-18, max_iter=5000)
+# plsreg_sklearn = sklearn_pls_.PLSSVD(n_components=n_components)
 plsreg_sklearn.fit(X, Y)
 
 np.testing.assert_array_almost_equal(plsreg.x_scores_,
@@ -129,7 +123,8 @@ np.testing.assert_array_almost_equal(plsreg.y_weights_,
 # --------------
 plsca = pls_.PLSCanonical(n_components=n_components)
 plsca.fit(X, Y)
-plsca_sklearn = sklearn_pls_.PLSCanonical(n_components=n_components)
+plsca_sklearn = sklearn_pls_.PLSCanonical(n_components=n_components,
+                                          tol=1e-18, max_iter=5000)
 plsca_sklearn.fit(X, Y)
 
 np.testing.assert_array_almost_equal(plsca.x_scores_,
