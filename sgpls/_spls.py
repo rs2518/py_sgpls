@@ -1,316 +1,229 @@
-from ._pls import _PLS
-from .utils import _check_1d
+import warnings
+import numpy as np
 
+from abc import abstractmethod
+from sklearn.exceptions import ConvergenceWarning
+from sklearn.utils import check_array
+
+from ._base import svd_cross_product
+from ._pls import _PLS
 
 __all__ = ['sPLSCanonical', 'sPLSRegression']
 
 
+def _check_1d(arr, warn=True):
+    """Check if input is a non-empty 1D array
+    """
+    arr = check_array(arr, ensure_2d=False)
+    
+    if arr.ndim == 1:
+        return arr
+    
+    elif arr.ndim == 2 and 1 in arr.shape:
+        if warn:
+            warnings.warn("Expected a 1-dimensional array",
+                          UserWarning)
+        
+        return arr.ravel()
+    
+    else:
+        raise ValueError("Shape of array is invalid: \n%s\n"
+                         "Array must be 1-dimensional"
+                         % arr)
+        
+def _check_1d_or_none(arr, warn=True):
+    """Check if input is a non-empty 1D array
+    """
+    if arr is None:
+        pass
+    else:
+        return _check_1d(arr, warn=warn)
+        
+def _check_length(arr, max_length, min_length=0):
+    """Validate input array length
+    """
+    if len(arr) < min_length:
+        raise ValueError("Invalid array: \n%s\n" 
+                         "Length is %d but minimum length is %d"
+                         % (arr, len(arr), min_length))
+    if len(arr) > max_length:
+        raise ValueError("Invalid array: \n%s\n" 
+                         "Length is %d but maximum length is %d"
+                         % (arr, len(arr), max_length))
+        
+def _check_entries(arr, max_entry, min_entry=0):
+    """Validate input array entries
+    """
+    if any(arr < min_entry):
+        raise ValueError("Invalid array: \n%s\n" 
+                         "Entries cannot be below min_entry"
+                         "(i.e. Entries must be > %d)"
+                         % (arr, min_entry))
+    if any(arr > max_entry):
+        raise ValueError("Invalid array: \n%s\n" 
+                         "Entries cannot exceed max_entry"
+                         "(i.e. Entries must be < %d)"
+                         % (arr, max_entry))
+        
+def _soft_thresholding(y, lambda_k):
+    """Soft-thresholding function
+    """
+    eps = np.finfo(float).eps ** 0.5
+    a = np.abs(y) - lambda_k
+    a[a < eps] = 0
+    return np.sign(y) * a
+
+
+def _spls_inner_loop(X, Y, nx_var, ny_var, max_iter=500, tol=1e-06,
+                     norm_y_weights=True):
+    """Inner loop for sPLS weights estimation
+    """
+    u_old, v_old, M = svd_cross_product(X, Y)
+    eps = np.finfo(X.dtype).eps
+    
+    x_sparsity = X.shape[1] - nx_var
+    y_sparsity = Y.shape[1] - ny_var
+    
+    for i in range(max_iter):
+        # 1.1 Calculate M_v : the X projections
+        M_v = np.dot(M, v_old)
+        # 1.2 Find lambda_x : the X penalty
+        if x_sparsity == 0:
+            lambda_x = 0
+        else:
+            lambda_x = sorted(np.absolute(M_v))[x_sparsity-1]
+        # The number of non-zero X loadings gives the appropriate value
+        # for penalisation of X variables.
+        # 1.3 Update u : the X weights
+        u = _soft_thresholding(M_v, lambda_x)
+        if np.dot(u.T, u) < eps:
+            u += eps
+        # 1.4 Normalise u
+        u /= np.sqrt(np.dot(u.T, u)) + eps
+        
+        # 2.1 Calculate M_u : the Y projections
+        M_u = np.dot(M.T, u)
+        # 2.2 Find lambda_y : the Y penalty
+        if y_sparsity == 0:
+            lambda_y = 0
+        else:
+            lambda_y = sorted(np.absolute(M_u))[y_sparsity-1]
+        # 2.3 Update v : the Y weights
+        v = _soft_thresholding(M_u, lambda_y)
+        # 2.4 Normalise v
+        if norm_y_weights:
+            v /= np.sqrt(np.dot(v.T, v)) + eps
+        
+        u_diff = u - u_old
+        v_diff = v - v_old
+        if np.dot(u_diff.T, u_diff) < tol and np.dot(v_diff.T, v_diff) < tol:
+            break
+        u_old = u
+        v_old = v
+    
+    n_iter = i + 1
+    if n_iter == max_iter:
+        warnings.warn("Maximum number of iterations reached",
+                      ConvergenceWarning)
+        
+    return u, v, n_iter
+    
+
 class _sPLS(_PLS):
     """Sparse Partial Least Squares (sPLS)
-    
-    This class implements the sPLS algorithm.
-    Sparsity is enforced via the interpretable features x_vars, y_vars
-    (the number of non-zero X and Y variables contributing to the loadings
-    vector for each component, respectively).
-    
-    Specific implementations include:
-        
-    - sPLS regression, i.e. sPLS with asymmetric deflation and unnormalized
-      y weights. The algorithm is defined in [Lê Cao 2008] and also
-      mentioned in [Benoit Liquet 2015].
-    
-    - sPLS canonical, i.e. sPLS with symmetric deflation and 
-      unnormalized y weights. The algorithm is defined in [Lê Cao 2008].
-    
-    For consistency, we use the terminology defined in scikit-learn's PLS
-    code. However, additional functions and comments will reference
-    terminology according to [Lê Cao 2008].
-    The algorithm uses a two nested-loop structure similar to that of PLS:
-        (i) The outer loop iterates over components
-        (ii) The inner loop estimates the penalised weights vectors. Using the
-        soft-thresholding iterative equation
-    
-    n_components : int, number of components to keep, (default 2)
-    
-    x_vars : array, [n_components]
-        The number of non-zero X variables in the corresponding weights vector
-        for each component.
-    
-    y_vars : array, [n_components], (default None)
-        The number of non-zero Y variables in the corresponding weights vector
-        for each component.
-        If None, no Y variables are penalised.
-    
-    scale : boolean, scale data, (default True)
-    
-    deflation_mode : str, "canonical" or "regression". See notes.
-              
-    max_iter : int, (default 500)
-        The maximum number of iterations of inner loop
-        
-    tol : non-negative real, (default 1e-06)
-        The tolerance used in the iterative algorithm.
-        
-    copy : boolean, (default True)
-        Whether the deflation should be done on a copy. Let the default
-        value to True unless you don't care about side effects.
-    
-    Attributes
-    ----------
-    x_loadings_ : array, [p, n_components]
-        X block loadings vectors.
-    
-    y_loadings_ : array, [q, n_components]
-        Y block loadings vectors.
-    
-    x_scores_ : array, [n_samples, n_components]
-        X scores.
-    
-    y_scores_ : array, [n_samples, n_components]
-        Y scores.
-    
-    x_rotations_ : array, [p, n_components]
-        X block to latents rotations.
-    
-    y_rotations_ : array, [q, n_components]
-        Y block to latents rotations.
-    
-    coef_ : array, [p, q]
-        The coefficients of the linear model: ``Y = X coef_ + Err``
-    
-    n_iter_ : array-like
-        Number of iterations of the inner loop for each component.
-    
-    References
-    ----------
-    
-    Kim-Anh Lê Cao, Debra Rossow, Christèle Robert-Granié, Philippe Besse.
-    A Sparse PLS for Variable Selection when Integrating Omics data.
-    Statistical Applications in Genetics and Molecular Biology,
-    De Gruyter, 2008.
-
-    Benoît Liquet, Pierre Lafaye de Micheaux, Boris P. Hejblum,
-    Rodolphe Thiébaut, Group and sparse group partial least square approaches
-    applied in genomics context, Bioinformatics, Volume 32, Issue 1,
-    1 January 2016, Pages 35–42, https://doi.org/10.1093/bioinformatics/btv535
-    
-    See also
-    --------
-    sPLSCanonical
-    sPLSRegression
     """
     model = "spls"
-    
-    def __init__(self, x_vars, y_vars=None, n_components=2, scale=True,
+
+    @abstractmethod
+    def __init__(self, x_vars, y_vars=None, n_components=2, *, scale=True,
                  deflation_mode="regression", norm_y_weights=False,
                  max_iter=500, tol=1e-06, copy=True):
         super().__init__(n_components=n_components, scale=scale,
-                         deflation_mode=deflation_mode, algorithm="NA",
+                         deflation_mode=deflation_mode, 
                          norm_y_weights=norm_y_weights,
                          max_iter=max_iter, tol=tol, copy=copy)
-        self.x_vars = _check_1d(x_vars)
-        if y_vars is None:
-            self.y_vars = y_vars
-        else:
-            self.y_vars = _check_1d(y_vars)
+        if x_vars is None and y_vars is None:
+            raise ValueError("Must include a sparsity parameter. "
+                             "Use PLS instead for zero sparsity")
+        self.x_vars = _check_1d_or_none(x_vars)
+        self.y_vars = _check_1d_or_none(y_vars)
 
+    def weights_estimation(self, X, Y, **kwargs):
+        """Estimate PLS weights
+        """
+        k = self._comp
+        
+        nx_var = self._x_vars[k]
+        ny_var = self._y_vars[k]
+        max_iter = self.max_iter
+        tol = self.tol
+        norm_y_weights = self.norm_y_weights
+        
+        return _spls_inner_loop(X=X, Y=Y, nx_var=nx_var, ny_var=ny_var,
+                                max_iter=max_iter, tol=tol,
+                                norm_y_weights=norm_y_weights)
+            
+    def _check_sparsity(self, X, Y):
+        """Validates input arguments for sparse extensions of PLS
+        """
+        # Validate arrays
+        n = self.n_components
+        p = X.shape[1]
+        if Y.ndim == 1:
+            q = 1
+        else:
+            q = Y.shape[1]
+        
+        _check_length(self.x_vars, max_length=n, min_length=n)        
+        _check_entries(self.x_vars, max_entry=p, min_entry=1)
+        
+        _check_length(self.y_vars, max_length=n, min_length=n)
+        _check_entries(self.y_vars, max_entry=q, min_entry=1)
+        
+        # Assign sparsity parameters to preserve None
+        if self.x_vars is None:
+            self._x_vars = np.full(n, p)
+        else:
+            self._x_vars = self.x_vars
+
+        if self.y_vars is None:
+            self._y_vars = np.full(n, q)
+        else:
+            self._y_vars = self.y_vars
+        
+        return self
+        
+        
+    def fit(self, X, Y):
+        """Fit model to data
+        """
+        self._check_sparsity(X, Y)
+        
+        super().fit(X, Y)
+        return self        
+        
 
 class sPLSRegression(_sPLS):
     """sPLS regression
-      
-    sPLSRegression inherits from _sPLS with deflation_mode="regression",
-    norm_y_weights=False and with algorithm="NA".
-    Parameters
-    ----------
-    n_components : int, (default 2)
-        Number of components to keep.
-        
-    x_vars : array, [n_components]
-        The number of non-zero X variables in the corresponding weights vector
-        for each component.
-    
-    y_vars : array, [n_components], (default None)
-        The number of non-zero Y variables in the corresponding weights vector
-        for each component.
-        If None, no Y variables are penalised.
-        
-    scale : boolean, (default True)
-        whether to scale the data
-        
-    max_iter : int, (default 500)
-        The maximum number of iterations of inner loop
-        
-    tol : non-negative real, (default 1e-06)
-        Tolerance used in the iterative algorithm.
-        
-    copy : boolean, (default True)
-        Whether the deflation should be done on a copy. Let the default
-        value to True unless you don't care about side effect.
-        
-    Attributes
-    ----------
-    x_weights_ : array, [p, n_components]
-        X block weights vectors.
-        
-    y_weights_ : array, [q, n_components]
-        Y block weights vectors.
-        
-    x_loadings_ : array, [p, n_components]
-        X block loadings vectors.
-        
-    y_loadings_ : array, [q, n_components]
-        Y block loadings vectors.
-        
-    x_scores_ : array, [n_samples, n_components]
-        X scores.
-        
-    y_scores_ : array, [n_samples, n_components]
-        Y scores.
-        
-    x_rotations_ : array, [p, n_components]
-        X block to latents rotations.
-        
-    y_rotations_ : array, [q, n_components]
-        Y block to latents rotations.
-        
-    coef_ : array, [p, q]
-        The coefficients of the linear model: ``Y = X coef_ + Err``
-        
-    n_iter_ : array-like
-        Number of iterations of the inner loop for each component.
-        
-    Notes
-    -----
-    The labels given by scikit-learn's PLS script are compared to the adapted
-    corresponding terminology based on [Lê Cao 2008]:
-    
-        Matrices::     
-            T: x_scores_ (or equivalently, Ξ)
-            U: y_scores_ (or equivalently, Ω)
-            W: x_weights_ (or equivalently, U)
-            C: y_weights_ (or equivalently, V)
-            P: x_loadings_ (or equivalently, C)
-            Q: y_loadings_ (or equivalently, D for regression; E for canonical)
-            
-    References
-    ----------
-    
-    Kim-Anh Lê Cao, Debra Rossow, Christèle Robert-Granié, Philippe Besse.
-    A Sparse PLS for Variable Selection when Integrating Omics data.
-    Statistical Applications in Genetics and Molecular Biology,
-    De Gruyter, 2008.
-
-    Benoît Liquet, Pierre Lafaye de Micheaux, Boris P. Hejblum,
-    Rodolphe Thiébaut, Group and sparse group partial least square approaches
-    applied in genomics context, Bioinformatics, Volume 32, Issue 1,
-    1 January 2016, Pages 35–42, https://doi.org/10.1093/bioinformatics/btv535
     """
 
-    def __init__(self, x_vars, y_vars=None, n_components=2, scale=True,
-                 max_iter=500, tol=1e-06, copy=True):
-        super().__init__(
-            x_vars, y_vars=y_vars, n_components=n_components,
-            scale=scale, deflation_mode="regression",
-            norm_y_weights=True, max_iter=max_iter,
-            tol=tol, copy=copy)
+    def __init__(self, x_vars, y_vars=None, n_components=2, *,
+                 scale=True, max_iter=500, tol=1e-06, copy=True):
+        super().__init__(x_vars, y_vars=y_vars,
+                         n_components=n_components, scale=scale,
+                         deflation_mode="regression",
+                         norm_y_weights=False,
+                         max_iter=max_iter, tol=tol, copy=copy)
 
 
 class sPLSCanonical(_sPLS):
     """sPLS canonical
-
-    sPLSCanonical inherits from _sPLS with deflation_mode="canonical",
-    norm_y_weights=True and with algorithm="NA".
-        
-    Parameters
-    ----------
-    n_components : int, (default 2)
-        Number of components to keep.
-        
-    x_vars : array, [n_components]
-        The number of non-zero X variables in the corresponding weights vector
-        for each component.
-    
-    y_vars : array, [n_components], (default None)
-        The number of non-zero Y variables in the corresponding weights vector
-        for each component.
-        If None, no Y variables are penalised.
-        
-    scale : boolean, (default True)
-        whether to scale the data
-        
-    max_iter : int, (default 500)
-        The maximum number of iterations of inner loop
-        
-    tol : non-negative real, (default 1e-06)
-        The tolerance used in the iterative algorithm.
-        
-    copy : boolean, (default True)
-        Whether the deflation should be done on a copy. Let the default
-        value to True unless you don't care about side effect.
-        
-    Attributes
-    ----------
-    x_weights_ : array, [p, n_components]
-        X block weights vectors.
-        
-    y_weights_ : array, [q, n_components]
-        Y block weights vectors.
-        
-    x_loadings_ : array, [p, n_components]
-        X block loadings vectors.
-        
-    y_loadings_ : array, [q, n_components]
-        Y block loadings vectors.
-        
-    x_scores_ : array, [n_samples, n_components]
-        X scores.
-        
-    y_scores_ : array, [n_samples, n_components]
-        Y scores.
-        
-    x_rotations_ : array, [p, n_components]
-        X block to latents rotations.
-        
-    y_rotations_ : array, [q, n_components]
-        Y block to latents rotations.
-        
-    coef_ : array, [p, q]
-        The coefficients of the linear model: ``Y = X coef_ + Err``
-        
-    n_iter_ : array-like
-        Number of iterations of the inner loop for each component.
-        
-    Notes
-    -----
-    The labels given by scikit-learn's PLS script are compared to the adapted
-    corresponding terminology based on [Lê Cao 2008]:
-    
-        Matrices::     
-            T: x_scores_ (or equivalently, Ξ)
-            U: y_scores_ (or equivalently, Ω)
-            W: x_weights_ (or equivalently, U)
-            C: y_weights_ (or equivalently, V)
-            P: x_loadings_ (or equivalently, C)
-            Q: y_loadings_ (or equivalently, D for regression; E for canonical)   
-    
-    References
-    ----------
-    
-    Kim-Anh Lê Cao, Debra Rossow, Christèle Robert-Granié, Philippe Besse.
-    A Sparse PLS for Variable Selection when Integrating Omics data.
-    Statistical Applications in Genetics and Molecular Biology,
-    De Gruyter, 2008.
-
-    Benoît Liquet, Pierre Lafaye de Micheaux, Boris P. Hejblum,
-    Rodolphe Thiébaut, Group and sparse group partial least square approaches
-    applied in genomics context, Bioinformatics, Volume 32, Issue 1,
-    1 January 2016, Pages 35–42, https://doi.org/10.1093/bioinformatics/btv535
     """
 
-    def __init__(self, x_vars, y_vars=None, n_components=2, scale=True,
+    def __init__(self, x_vars, y_vars=None, n_components=2, *, scale=True,
                  max_iter=500, tol=1e-06, copy=True):
-        super().__init__(
-            x_vars, y_vars=y_vars, n_components=n_components,
-            scale=scale, deflation_mode="canonical",
-            norm_y_weights=True, max_iter=max_iter,
-            tol=tol, copy=copy)
+        super().__init__(x_vars, y_vars=y_vars,
+                         n_components=n_components, scale=scale,
+                         deflation_mode="canonical",
+                         norm_y_weights=True,
+                         max_iter=max_iter, tol=tol, copy=copy)

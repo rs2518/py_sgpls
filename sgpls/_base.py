@@ -124,6 +124,7 @@ class _PLSBase(TransformerMixin, BaseEstimator, metaclass=ABCMeta):
 
             # 1) weights estimation (inner loop)
             # -----------------------------------
+            self._comp = k    # Set component as an attribute            
             try:
                 x_weights, y_weights, n_iter_ = \
                     self.weights_estimation(X, Y)
