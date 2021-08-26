@@ -13,12 +13,12 @@ __all__ = ['PLSCanonical', 'PLSRegression']
 
 
 def _pls_inner_loop(X, Y, algorithm, max_iter=500, tol=1e-06,
-                    norm_y_weights=True, Y_eps=np.finfo(float).eps):
+                    norm_y_weights=True):
     """Inner loop for PLS weights estimation
     """
     if algorithm == "nipals":
         # Replace columns that are all close to zero with zeros
-        Y_mask = np.all(np.abs(Y) < 10 * Y_eps, axis=0)
+        Y_mask = np.all(np.abs(Y) < 10 * np.finfo(float).eps, axis=0)
         Y[:, Y_mask] = 0.0
     
         u, v, n_iter = \
@@ -51,19 +51,16 @@ class _PLS(_PLSBase, RegressorMixin, MultiOutputMixin, metaclass=ABCMeta):
                          norm_y_weights=norm_y_weights,
                          max_iter=max_iter, tol=tol, copy=copy)
         
-    def weights_estimation(self, X, Y, **kwargs):
+    def weights_estimation(self, X, Y):
         """Estimate PLS weights
         """
-        kwargs = {"Y_eps":np.finfo(Y.dtype).eps}
-        
         max_iter = self.max_iter
         tol = self.tol
         norm_y_weights = self.norm_y_weights
         
         return _pls_inner_loop(X=X, Y=Y, algorithm="nipals",
                                max_iter=max_iter, tol=tol,
-                               norm_y_weights=norm_y_weights,
-                               Y_eps=kwargs["Y_eps"])
+                               norm_y_weights=norm_y_weights)
     
     def _check_sparsity(self):
         """Validates input arguments for sparse extensions of PLS
@@ -72,6 +69,7 @@ class _PLS(_PLSBase, RegressorMixin, MultiOutputMixin, metaclass=ABCMeta):
     def _check_blocking(self):
         """Validate blocking inputs for gPLS and sgPLS
         """
+        
         
     def fit(self, X, Y):
         """Fit model to data
@@ -83,6 +81,7 @@ class _PLS(_PLSBase, RegressorMixin, MultiOutputMixin, metaclass=ABCMeta):
         """Fit model to data
         """
         return super()._decision_function(self, X)
+
 
 class PLSRegression(_PLS):
     """PLS regression

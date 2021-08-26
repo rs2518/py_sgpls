@@ -50,6 +50,7 @@ class _PLSBase(TransformerMixin, BaseEstimator, metaclass=ABCMeta):
         """Validate blocking inputs for gPLS and sgPLS
         """
         
+        
     def _fit(self, X, Y):
         """Fit model to data
         """
@@ -124,7 +125,8 @@ class _PLSBase(TransformerMixin, BaseEstimator, metaclass=ABCMeta):
             # 1) weights estimation (inner loop)
             # -----------------------------------
             try:
-                x_weights, y_weights, n_iter_ = self.weights_estimation(X, Y)
+                x_weights, y_weights, n_iter_ = \
+                    self.weights_estimation(X, Y)
             except StopIteration as e:
                 if str(e) != "Y residual is constant":
                     raise
