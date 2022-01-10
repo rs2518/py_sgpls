@@ -39,7 +39,7 @@ def _check_1d_or_none(arr, warn=True):
     else:
         return _check_1d(arr, warn=warn)
         
-def _check_length(arr, max_length, min_length=0):
+def _check_length(arr, max_length, min_length):
     """Validate input array length
     """
     if len(arr) < min_length:
@@ -51,7 +51,7 @@ def _check_length(arr, max_length, min_length=0):
                          "Length is %d but maximum length is %d"
                          % (arr, len(arr), max_length))
         
-def _check_entries(arr, max_entry, min_entry=0):
+def _check_entries(arr, max_entry, min_entry):
     """Validate input array entries
     """
     if any(arr < min_entry):
@@ -64,6 +64,12 @@ def _check_entries(arr, max_entry, min_entry=0):
                          "Entries cannot exceed max_entry"
                          "(i.e. Entries must be < %d)"
                          % (arr, max_entry))
+        
+def _check_sparse_array(arr, max_length, min_length, max_entry, min_entry):
+    """Validate input sparsity array
+    """
+    _check_length(arr=arr, max_length=max_length, min_length=min_length)
+    _check_entries(arr=arr, max_entry=max_entry, min_entry=min_entry)
         
 def _soft_thresholding(y, lambda_k):
     """Soft-thresholding function
@@ -174,11 +180,10 @@ class _sPLS(_PLS):
         else:
             q = Y.shape[1]
         
-        _check_length(self.x_vars, max_length=n, min_length=n)        
-        _check_entries(self.x_vars, max_entry=p, min_entry=1)
-        
-        _check_length(self.y_vars, max_length=n, min_length=n)
-        _check_entries(self.y_vars, max_entry=q, min_entry=1)
+        _check_sparse_array(self.x_vars, max_length=n, min_length=n,
+                            max_entry=p, min_entry=1)
+        _check_sparse_array(self.y_vars, max_length=n, min_length=n,
+                            max_entry=q, min_entry=1)
         
         # Assign sparsity parameters to preserve None
         if self.x_vars is None:
@@ -212,7 +217,7 @@ class sPLSRegression(_sPLS):
         super().__init__(x_vars, y_vars=y_vars,
                          n_components=n_components, scale=scale,
                          deflation_mode="regression",
-                         norm_y_weights=False,
+                         norm_y_weights=True,
                          max_iter=max_iter, tol=tol, copy=copy)
 
 
